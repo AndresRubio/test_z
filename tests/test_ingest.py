@@ -1,4 +1,5 @@
 import json
+import re
 
 import pytest
 
@@ -33,6 +34,13 @@ def test_strip_html_removes_tags_entities_and_collapses_whitespace():
 def test_strip_html_handles_empty_and_none():
     assert strip_html("") == ""
     assert strip_html(None) == ""
+
+
+def test_strip_html_preserves_comparison_operators_as_content():
+    # Real catalog encodes "<25kg" as the entity &lt;25kg inside markup.
+    # Tags must go; the decoded comparison operator is real content and stays.
+    assert strip_html("<p>Für Hunde &lt;25&nbsp;kg geeignet</p>") == "Für Hunde <25 kg geeignet"
+    assert strip_html("Hunde &gt;40 kg") == "Hunde >40 kg"
 
 
 def test_cleans_and_maps_fields(tmp_path):
@@ -107,6 +115,9 @@ def test_real_dataset_counts_match_the_known_traps():
     assert report.variants_kept == 263 == len(variants)
     assert report.out_of_stock == 8
     assert {v.site_id for v in variants} == {1, 3, 15}
-    assert all("<" not in v.description for v in variants)
+    tag_re = re.compile(r"<[a-zA-Z/][^>]*>")
+    for v in variants:
+        for field in (v.summary, v.description, v.ingredients, v.feeding_recommendations):
+            assert not tag_re.search(field), f"HTML tag leaked into {v.variant_id}: {field!r}"
     assert max(v.price for v in variants) < 500.0
     assert sum(1 for v in variants if v.rating_average is None) == 174  # 198 - 24 quarantined

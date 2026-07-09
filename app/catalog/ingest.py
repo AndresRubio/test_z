@@ -12,7 +12,6 @@ from app.catalog.models import Variant
 logger = logging.getLogger(__name__)
 
 _TAG_RE = re.compile(r"<[^>]+>")
-_ANGLE_BRACKET_RE = re.compile(r"[<>]")
 _WS_RE = re.compile(r"\s+")
 
 
@@ -29,18 +28,21 @@ def strip_html(raw: str | None) -> str:
     Unescaping first would turn that into a bare "<" that could then pair
     with an unrelated later ">" (real or decoded) and make the tag regex
     swallow everything in between as a bogus tag — silently destroying real
-    content. Stripping tags first avoids that, but leaves those decoded
-    "<"/">" characters in the output, so a final defensive pass drops any
-    stray angle brackets that survive — by that point they can only be
-    decoded-entity content, never markup, so the result is guaranteed
-    markup-free rather than merely tag-free.
+    content. Stripping tags first avoids that.
+
+    The decoded "<"/">" characters left behind by unescaping (e.g. "<25kg",
+    ">40kg") are intentionally preserved in the output: the catalog encodes
+    real feeding/size-guidance comparisons this way ("für Hunde &lt;25kg"),
+    and by the time unescaping runs, tags are already gone — so any angle
+    bracket still present is guaranteed to be legitimate content, never
+    markup. Stripping it would corrupt exactly the feeding/suitability text
+    consumers rely on.
     """
     if not raw:
         return ""
     without_tags = _TAG_RE.sub("", raw)
     unescaped = html.unescape(without_tags)
-    no_stray_brackets = _ANGLE_BRACKET_RE.sub("", unescaped)
-    return _WS_RE.sub(" ", no_stray_brackets).strip()
+    return _WS_RE.sub(" ", unescaped).strip()
 
 
 @dataclass(frozen=True)
