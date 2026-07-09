@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Virtual environments / uv ---
+.venv/
+venv/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Testing / linting caches ---
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+
+# --- OS ---
+.DS_Store
+
+# --- AI workflow scaffolding (internal tooling, not part of the submission) ---
+docs/agents/
+.claude/
+# docs/specs/   # uncomment to also exclude the internal PRD/issue planning artifacts
+
+# --- Assignment source doc (contains the client brand name; never commit) ---
+Coding Task.docx
+~$*.docx
