@@ -19,9 +19,9 @@ def test_partitions_by_site():
 
 
 def test_site_metadata_derived_from_variants():
-    repo = CatalogRepository([make_variant(site_id=15, locale="es-ES", currency="EUR")])
-    site = repo.site_for(15)
-    assert (site.site_id, site.locale, site.currency) == (15, "es-ES", "EUR")
+    repo = CatalogRepository([make_variant(site_id=3, locale="en-GB", currency="GBP")])
+    site = repo.site_for(3)
+    assert (site.site_id, site.locale, site.currency) == (3, "en-GB", "GBP")
 
 
 def test_unknown_site_raises_with_valid_sites():
@@ -29,8 +29,20 @@ def test_unknown_site_raises_with_valid_sites():
     with pytest.raises(UnknownSiteError) as exc_info:
         repo.variants_for_site(99)
     assert exc_info.value.valid_sites == [1]
-    with pytest.raises(UnknownSiteError):
+    with pytest.raises(UnknownSiteError) as exc_info:
         repo.site_for(99)
+    assert exc_info.value.valid_sites == [1]
+
+
+def test_site_ids_are_sorted_not_insertion_order():
+    repo = CatalogRepository(
+        [
+            make_variant(variant_id="a.0", site_id=15, locale="es-ES", currency="EUR"),
+            make_variant(variant_id="b.0", site_id=3, locale="en-GB", currency="GBP"),
+            make_variant(variant_id="c.0", site_id=1, locale="de-DE", currency="EUR"),
+        ]
+    )
+    assert repo.site_ids() == [1, 3, 15]
 
 
 def test_variants_for_site_returns_copy():
