@@ -110,7 +110,7 @@ def test_real_dataset_counts_match_the_known_traps():
     assert report.total_records == 300
     assert report.exact_duplicates_dropped == 12
     assert report.pet_type_conflicts == 1
-    assert report.ratings_nulled == 198   # post-dedup, pre-quarantine
+    assert report.ratings_nulled == 198   # raw-feed rows with rating_count==0 (issue 02); post-dedup that subset is 192
     assert report.price_quarantined == 24
     assert report.variants_kept == 263 == len(variants)
     assert report.out_of_stock == 8
@@ -120,4 +120,4 @@ def test_real_dataset_counts_match_the_known_traps():
         for field in (v.summary, v.description, v.ingredients, v.feeding_recommendations):
             assert not tag_re.search(field), f"HTML tag leaked into {v.variant_id}: {field!r}"
     assert max(v.price for v in variants) < 500.0
-    assert sum(1 for v in variants if v.rating_average is None) == 174  # 198 - 24 quarantined
+    assert sum(1 for v in variants if v.rating_average is None) == 174  # kept variants unrated: 192 post-dedup minus 18 that were also quarantined
