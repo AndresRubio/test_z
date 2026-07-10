@@ -26,6 +26,28 @@ def test_env_override(monkeypatch):
     assert s.top_k == 3
 
 
+def test_retrieval_defaults():
+    s = Settings(_env_file=None)
+    assert s.retriever_backend == "bm25"  # hybrid is strictly opt-in (ADR 0003)
+    assert s.embedding_model == "sentence-transformers/all-MiniLM-L6-v2"
+    assert s.rrf_k == 60
+    assert s.min_semantic_similarity == 0.25
+
+
+def test_retrieval_env_override(monkeypatch):
+    monkeypatch.setenv("ZA_RETRIEVER_BACKEND", "hybrid")
+    monkeypatch.setenv(
+        "ZA_EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    monkeypatch.setenv("ZA_RRF_K", "20")
+    monkeypatch.setenv("ZA_MIN_SEMANTIC_SIMILARITY", "0.4")
+    s = Settings(_env_file=None)
+    assert s.retriever_backend == "hybrid"
+    assert s.embedding_model.endswith("paraphrase-multilingual-MiniLM-L12-v2")
+    assert s.rrf_k == 20
+    assert s.min_semantic_similarity == 0.4
+
+
 def test_tracing_defaults():
     s = Settings(_env_file=None)
     assert s.tracing_enabled is False

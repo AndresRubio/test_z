@@ -23,6 +23,14 @@ def tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall(text.lower())
 
 
+def adjust_for_food_form(score: float, variant: Variant, form: str | None) -> float:
+    """Soft food-form re-rank shared by every retrieval backend: lift the
+    requested form (×1.5), gently damp the other (×0.85), never exclude."""
+    if form is None or variant.food_form is None:
+        return score
+    return score * (_FORM_MATCH if variant.food_form == form else _FORM_MISS)
+
+
 def _document_tokens(variant: Variant) -> list[str]:
     boosted = tokenize(f"{variant.product_name} {variant.brand}") * _NAME_BOOST
     rest = tokenize(
@@ -75,12 +83,6 @@ class BM25Retriever:
                     "after_pet_filter": len(kept),
                 },
             )
-        scored = [(v, self._adjust(s, v, form)) for v, s in kept]
+        scored = [(v, adjust_for_food_form(s, v, form)) for v, s in kept]
         scored.sort(key=lambda pair: pair[1], reverse=True)
         return [ScoredVariant(variant=v, score=s) for v, s in scored[:k]]
-
-    @staticmethod
-    def _adjust(score: float, variant: Variant, form: str | None) -> float:
-        if form is None or variant.food_form is None:
-            return score
-        return score * (_FORM_MATCH if variant.food_form == form else _FORM_MISS)
