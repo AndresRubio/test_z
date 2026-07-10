@@ -1,6 +1,8 @@
+import asyncio
 import logging
+import re
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import aclosing
 from dataclasses import dataclass, field
 
@@ -17,9 +19,11 @@ from app.api.schemas import (
 from app.catalog.repository import CatalogRepository
 from app.core.config import Settings
 from app.core.errors import LLMUnavailableError
+from app.chat.greeting import is_greeting
 from app.core.tracing import set_output, set_retrieved_documents, span
 from app.llm.prompts import (
     DECLINES,
+    GREETINGS,
     NO_MATCH_ANSWERS,
     generation_system,
     generation_user_prompt,
@@ -34,6 +38,14 @@ logger = logging.getLogger(__name__)
 class ChatResult:
     answer: str
     products: list[ScoredVariant] = field(default_factory=list)
+
+
+def _word_deltas(text: str) -> Iterator[str]:
+    """Split a static answer into word-sized chunks (each keeps its trailing
+    whitespace, so the pieces rejoin to the exact original). Lets the streaming
+    path type out a template answer the same way the Generator streams tokens —
+    still zero LLM calls."""
+    return iter(re.findall(r"\S+\s*", text))
 
 
 class ChatService:
@@ -58,6 +70,10 @@ class ChatService:
 
     async def _handle_inner(self, site_id: int, query: str) -> ChatResult:
         site = self._repository.site_for(site_id)  # UnknownSiteError -> 404
+
+        if is_greeting(query):
+            logger.info("greeting fast-path", extra={"site_id": site_id})
+            return ChatResult(answer=GREETINGS[site.locale])
 
         if not await self._timed("judge", self._judge.is_on_topic(query)):
             logger.info("judge declined query", extra={"site_id": site_id})
@@ -95,6 +111,18 @@ class ChatService:
         with span("chat", "CHAIN", input_value=query) as chat_span:
             chat_span.set_attribute("site_id", site_id)
             site = self._repository.site_for(site_id)  # UnknownSiteError -> 404
+
+            if is_greeting(query):
+                logger.info("greeting fast-path", extra={"site_id": site_id})
+                answer = GREETINGS[site.locale]
+                pace = self._settings.greeting_stream_delay_seconds
+                for i, delta in enumerate(_word_deltas(answer)):
+                    if i and pace:
+                        await asyncio.sleep(pace)  # visible typing cadence
+                    yield TokenEvent(delta=delta)
+                set_output(chat_span, answer)
+                yield DoneEvent(answer=answer)
+                return
 
             if not await self._timed("judge", self._judge.is_on_topic(query)):
                 logger.info("judge declined query", extra={"site_id": site_id})

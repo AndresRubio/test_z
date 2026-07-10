@@ -55,6 +55,25 @@ DECLINES = {
     ),
 }
 
+# Static per-Site-locale welcome for a bare greeting ("Hi", "Hola", "Hallo").
+# Recognised before the Judge, so a greeting spends zero LLM calls.
+GREETINGS = {
+    "de-DE": (
+        "Hallo! Ich bin Ihr Einkaufsassistent für Haustierbedarf. Fragen Sie "
+        "mich nach Futter, Spielzeug oder Zubehör, und ich helfe Ihnen, das "
+        "passende Produkt zu finden."
+    ),
+    "en-GB": (
+        "Hello! I'm your pet-supplies shopping assistant. Ask me about food, "
+        "toys, or supplies for your pet and I'll help you find the right product."
+    ),
+    "es-ES": (
+        "¡Hola! Soy tu asistente de compras de productos para mascotas. "
+        "Pregúntame por comida, juguetes o accesorios y te ayudaré a encontrar "
+        "el producto adecuado."
+    ),
+}
+
 NO_MATCH_ANSWERS = {
     "de-DE": (
         "Leider habe ich in diesem Shop kein passendes Produkt zu Ihrer Anfrage "

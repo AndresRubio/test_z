@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     judge_model: str = "gemma4:e2b"  # Judge — tiny model (ADR 0002)
     top_k: int = 5
     context_chars_per_product: int = 600
+    # Pacing for streamed static templates (e.g. greetings): a small per-word
+    # delay so the typing effect is visible instead of arriving in one burst.
+    greeting_stream_delay_seconds: float = 0.035
     llm_timeout_seconds: float = 60.0
     temperature: float = 0.2
     catalog_path: Path = Path("product_catalog_dataset.json")

@@ -7,7 +7,7 @@ from app.catalog.repository import CatalogRepository
 from app.chat.service import ChatResult, ChatService
 from app.core.config import Settings
 from app.core.errors import LLMUnavailableError, UnknownSiteError
-from app.llm.prompts import DECLINES, NO_MATCH_ANSWERS
+from app.llm.prompts import DECLINES, GREETINGS, NO_MATCH_ANSWERS
 from app.retrieval.base import ScoredVariant
 from tests.helpers import FakeLLM, make_variant
 
@@ -44,7 +44,7 @@ def _repository():
     )
 
 
-def _service(verdict=True, results=None, llm=None):
+def _service(verdict=True, results=None, llm=None, settings=SETTINGS):
     judge = FakeJudge(verdict)
     retriever = FakeRetriever(results if results is not None else [])
     llm = llm or FakeLLM(responses=["generated answer"])
@@ -53,7 +53,7 @@ def _service(verdict=True, results=None, llm=None):
         retriever=retriever,
         llm=llm,
         repository=_repository(),
-        settings=SETTINGS,
+        settings=settings,
     )
     return service, judge, retriever, llm
 
@@ -100,6 +100,31 @@ async def test_off_topic_decline_is_localized_per_site():
         service, _, _, _ = _service(verdict=False)
         result = await service.handle(site_id, "weather?")
         assert result.answer == DECLINES[locale]
+
+
+async def test_greeting_short_circuits_before_judge_with_zero_llm_calls():
+    service, judge, retriever, llm = _service()
+    result = await service.handle(1, "Hallo!")
+    assert result.answer == GREETINGS["de-DE"]
+    assert result.products == []
+    assert judge.calls == []  # greeting never reaches the Judge
+    assert retriever.calls == []
+    assert llm.calls == []
+
+
+async def test_greeting_welcome_is_localized_per_site():
+    for site_id, locale, query in ((3, "en-GB", "hi"), (15, "es-ES", "hola")):
+        service, _, _, _ = _service()
+        result = await service.handle(site_id, query)
+        assert result.answer == GREETINGS[locale]
+
+
+async def test_greeting_bundled_with_question_still_runs_pipeline():
+    scored = [ScoredVariant(variant=make_variant(), score=2.0)]
+    service, judge, retriever, llm = _service(results=scored)
+    result = await service.handle(1, "hi, bestes Hundefutter?")
+    assert result.answer == "generated answer"
+    assert judge.calls == ["hi, bestes Hundefutter?"]  # not treated as a greeting
 
 
 async def test_no_match_uses_localized_template_without_generation():
@@ -153,6 +178,19 @@ async def test_stream_decline_is_single_done_with_zero_generator_calls():
     assert events == [DoneEvent(answer=DECLINES["de-DE"])]
     assert retriever.calls == []
     assert llm.calls == []
+
+
+async def test_stream_greeting_types_answer_then_done_with_zero_llm_calls():
+    settings = Settings(_env_file=None, greeting_stream_delay_seconds=0)
+    service, judge, retriever, llm = _service(settings=settings)
+    events = await _events(service, 1, "Hallo")
+    assert len(events) > 1  # streamed in pieces, not one Done
+    assert all(isinstance(e, TokenEvent) for e in events[:-1])
+    assert "".join(e.delta for e in events[:-1]) == GREETINGS["de-DE"]
+    assert events[-1] == DoneEvent(answer=GREETINGS["de-DE"])
+    assert judge.calls == []
+    assert retriever.calls == []
+    assert llm.calls == []  # typed from a static template, zero LLM calls
 
 
 async def test_stream_no_match_is_single_done():
