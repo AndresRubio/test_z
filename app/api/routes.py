@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -34,9 +35,10 @@ async def chat(payload: ChatRequest, request: Request):
         first = await anext(events)
 
         async def frames() -> AsyncIterator[str]:
-            yield sse_frame(first)
-            async for event in events:
-                yield sse_frame(event)
+            async with aclosing(events):
+                yield sse_frame(first)
+                async for event in events:
+                    yield sse_frame(event)
 
         return StreamingResponse(frames(), media_type="text/event-stream")
 
