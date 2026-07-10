@@ -96,8 +96,8 @@ class ChatService:
         # BEFORE this pipeline that makes the turn self-contained (design doc
         # § Multi-turn); the transcript itself is client-resent and trusted —
         # the stateless-history (option a) trade-off vs a server-side
-        # conversation store (option b). See
-        # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
+        # conversation store (option b). See docs/specs/conversation/
+        # 2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
         if not await self._timed("judge", self._judge.is_on_topic(query)):
             logger.info("judge declined query", extra={"site_id": site_id})
             return ChatResult(answer=DECLINES[site.locale])
