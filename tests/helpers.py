@@ -75,3 +75,25 @@ class FakeLLM:
 
     async def aclose(self):
         pass
+
+
+class FakeEmbedder:
+    """Deterministic, fully offline Embedder double: projects text onto synonym axes.
+
+    Vector dimension i counts occurrences of any term in ``axes[i]``, so cosine
+    similarity means "shares concepts" — tests can stage paraphrase matches BM25
+    cannot see (kidney ~ renal) without any model download. Every encode() call
+    is recorded so caching behaviour is observable.
+    """
+
+    def __init__(self, axes=()):
+        self.axes = tuple(tuple(term.lower() for term in group) for group in axes)
+        self.calls = []
+
+    def encode(self, texts):
+        self.calls.append(list(texts))
+        return [self._vector(text) for text in texts]
+
+    def _vector(self, text):
+        lowered = text.lower()
+        return [float(sum(lowered.count(term) for term in group)) for group in self.axes]

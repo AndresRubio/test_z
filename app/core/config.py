@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     chat_model: str = "gemma4:e4b"  # Generator (ADR 0002)
     judge_model: str = "gemma4:e2b"  # Judge — tiny model (ADR 0002)
     top_k: int = 5
+    # Retrieval backend (ADR 0003): "bm25" (default, zero extra deps) or
+    # "hybrid" (BM25 + embedding cosine fused with RRF; needs the optional
+    # `semantic` extra — falls back to bm25 with a warning if unavailable).
+    retriever_backend: str = "bm25"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    rrf_k: int = 60  # RRF constant: higher spreads rank credit deeper into each list
+    min_semantic_similarity: float = 0.25  # cosine floor; analog of BM25's score > 0
     context_chars_per_product: int = 600
     # Pacing for streamed static templates (e.g. greetings): a small per-word
     # delay so the typing effect is visible instead of arriving in one burst.

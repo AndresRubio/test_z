@@ -13,7 +13,7 @@ from app.core.errors import LLMUnavailableError, UnknownSiteError
 from app.core.logging import RequestIdMiddleware, setup_logging
 from app.core.tracing import setup_tracing
 from app.llm.client import OllamaClient
-from app.retrieval.bm25 import BM25Retriever
+from app.retrieval.factory import build_retriever
 from app.ui import router as ui_router
 
 
@@ -32,7 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.llm_client = llm_client
         app.state.chat_service = ChatService(
             judge=Judge(llm_client, app_settings.judge_model),
-            retriever=BM25Retriever(repository),
+            retriever=build_retriever(app_settings, repository),
             llm=llm_client,
             repository=repository,
             settings=app_settings,
