@@ -274,6 +274,33 @@ environment. Containerization is on the roadmap for production.
 **Single-turn only.** `POST /chat` is stateless; multi-turn memory and
 streaming are roadmap items.
 
+## Conclusions
+
+What the data work of this PoC demonstrates:
+
+1. **Data quality is a deliverable, not preprocessing.** The catalog's traps
+   are the assignment's data-awareness test; each one is met by an explicit,
+   named policy with a pinned count. Nothing is silently "cleaned".
+2. **Policies over repairs.** Quarantine, don't fix (24 prices); null, don't
+   guess (198 ratings); keep-first and log, don't merge (1 conflict).
+   Deterministic and auditable beats clever: an ingest you can explain in one
+   page is an ingest you can defend.
+3. **Safety by construction beats filtering.** Internal Fields cannot leak
+   because the domain model has no fields to hold them. A structural
+   guarantee is verified by reading one model; a filter would have to be
+   verified on every code path, every time a new one is added.
+4. **Pin reality in tests.** `test_real_dataset_counts_match_the_known_traps`
+   turns the dataset's traps into a permanent regression guard: any ingest
+   change that shifts an outcome — a count, a leaked tag, a cross-Site row —
+   fails the suite loudly.
+5. **Clean once, serve every retriever.** The per-Site, HTML-free corpus is
+   what makes the retrieval seam real: BM25 consumes it today; the planned
+   vector/hybrid successor consumes the same corpus tomorrow with zero ingest
+   rework. What production would change is known and bounded: per-category
+   outlier statistics instead of a flat price cap, a refresh pipeline instead
+   of startup ingest, a structured quarantine report for operations, and
+   backfill-or-null for the two empty-brand rows.
+
 ## Future Roadmap
 
 1. **Hybrid retrieval + reranker through the existing seam**: multilingual
