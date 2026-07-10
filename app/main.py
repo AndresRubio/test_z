@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes import router
+from app.ui import router as ui_router
 from app.catalog.ingest import load_catalog
 from app.catalog.repository import CatalogRepository
 from app.chat.judge import Judge
@@ -44,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Assistant", version="0.1.0", lifespan=lifespan)
     app.add_middleware(RequestIdMiddleware)
     app.include_router(router)
+    app.include_router(ui_router)
 
     @app.exception_handler(UnknownSiteError)
     async def unknown_site_handler(request: Request, exc: UnknownSiteError):
