@@ -29,6 +29,7 @@ uv run pytest -k judge -v                 # by keyword
 uv run ruff check app tests evals         # lint
 
 uv run uvicorn app.main:app               # run the API (needs Ollama up)
+#   …then open http://localhost:8000/ — built-in web test console (app/ui)
 scripts/smoke.sh                          # live smoke (needs server + Ollama)
 uv run python -m evals.run_eval --base-url http://localhost:8000   # golden-set eval
 ```
@@ -76,6 +77,9 @@ Cross-cutting design facts that span files and must not be regressed:
   Site catalogs are disjoint.
 - **Tracing (`app/core/tracing.py`)** is a true no-op unless `ZA_TRACING_ENABLED`;
   the Phoenix/OpenInference import is lazy.
+- **`app/ui/` is a pure client.** One static page served at `GET /`
+  (excluded from the OpenAPI schema); it consumes only `/chat` and `/health`
+  and must never require backend changes.
 
 Tests mirror `app/` one-to-one under `tests/`, are fully offline, and share
 doubles from `tests/helpers.py` (`FakeLLM`, factories) and `tests/conftest.py`.

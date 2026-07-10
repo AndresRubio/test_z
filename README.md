@@ -50,9 +50,11 @@ uv sync
 
 # 3. Run
 uv run uvicorn app.main:app
+# then open http://localhost:8000/ — a small built-in web console
+# (site picker, chat, retrieved-product cards); curl works too:
 ```
 
-Try it:
+Try it from the command line:
 
 ```bash
 curl -s localhost:8000/chat -X POST -H 'Content-Type: application/json' \
