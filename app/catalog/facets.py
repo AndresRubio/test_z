@@ -23,7 +23,8 @@ queries arrive in any of them.
 # or add an LLM slot-extraction step that fills a typed intent object (richer,
 # one extra model call). Only slots backed by an authoritative clean field
 # should hard-filter; derived ones should soft-boost, as food_form does.
-# See docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Entity identification.
+# See docs/specs/conversation/
+# 2026-07-11-conversational-improvements-design.md § Entity identification.
 
 DOGS = "DOGS"
 CATS = "CATS"

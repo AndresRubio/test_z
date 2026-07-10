@@ -18,8 +18,8 @@ class ChatRequest(BaseModel):
     # memoryless; (b) stateful — a `conversation_id` keys a short server-side
     # transcript. Either way a query-rewriting step must make the turn
     # self-contained before the Judge and Retriever, which expect one standalone
-    # query. See
-    # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
+    # query. See docs/specs/conversation/
+    # 2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
 
     @field_validator("query")
     @classmethod
