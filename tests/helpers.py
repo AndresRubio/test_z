@@ -13,3 +13,27 @@ def make_variant(**overrides):
     )
     base.update(overrides)
     return Variant(**base)
+
+
+class FakeLLM:
+    """Duck-typed OllamaClient for tests: queued responses, call recording."""
+
+    def __init__(self, responses=None, error=None):
+        self.responses = list(responses or [])
+        self.error = error
+        self.calls = []
+
+    async def chat(self, model, system, user, *, temperature=0.0, json_mode=False):
+        self.calls.append({
+            "model": model, "system": system, "user": user,
+            "temperature": temperature, "json_mode": json_mode,
+        })
+        if self.error is not None:
+            raise self.error
+        return self.responses.pop(0)
+
+    async def is_reachable(self):
+        return self.error is None
+
+    async def aclose(self):
+        pass
