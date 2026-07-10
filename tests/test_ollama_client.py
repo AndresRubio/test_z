@@ -99,3 +99,70 @@ async def test_aclose_leaves_injected_client_open():
     await client.aclose()
     assert injected.is_closed is False
     await injected.aclose()
+
+
+def _ndjson(*objects):
+    return ("\n".join(json.dumps(o) for o in objects) + "\n").encode()
+
+
+async def test_chat_stream_yields_deltas_and_sets_stream_true():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            content=_ndjson(
+                {"message": {"role": "assistant", "content": "Hel"}, "done": False},
+                {"message": {"role": "assistant", "content": "lo"}, "done": False},
+                {
+                    "message": {"role": "assistant", "content": ""},
+                    "done": True,
+                    "prompt_eval_count": 5,
+                    "eval_count": 2,
+                },
+            ),
+        )
+
+    client = make_client(handler)
+    deltas = [d async for d in client.chat_stream("gemma4:e4b", "sys", "user msg", temperature=0.7)]
+    assert deltas == ["Hel", "lo"]
+    assert captured["json"]["stream"] is True
+    assert captured["json"]["model"] == "gemma4:e4b"
+    assert captured["json"]["options"]["temperature"] == 0.7
+    assert captured["json"]["messages"][0] == {"role": "system", "content": "sys"}
+    assert captured["json"]["messages"][1] == {"role": "user", "content": "user msg"}
+
+
+async def test_chat_stream_connect_error_raises_llm_unavailable():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    client = make_client(handler)
+    with pytest.raises(LLMUnavailableError):
+        async for _ in client.chat_stream("m", "s", "u"):
+            pass
+
+
+async def test_chat_stream_http_error_status_raises_llm_unavailable():
+    client = make_client(lambda req: httpx.Response(500, content=b'{"error": "boom"}'))
+    with pytest.raises(LLMUnavailableError):
+        async for _ in client.chat_stream("m", "s", "u"):
+            pass
+
+
+async def test_chat_stream_malformed_line_raises_llm_unavailable():
+    client = make_client(lambda req: httpx.Response(200, content=b"not json\n"))
+    with pytest.raises(LLMUnavailableError):
+        async for _ in client.chat_stream("m", "s", "u"):
+            pass
+
+
+async def test_chat_stream_skips_blank_lines_and_empty_deltas():
+    content = _ndjson(
+        {"message": {"content": "Hi"}, "done": False},
+        {"message": {"content": ""}, "done": True},
+    ).replace(b"\n", b"\n\n")  # inject blank lines between records
+    client = make_client(lambda req: httpx.Response(200, content=content))
+    deltas = [d async for d in client.chat_stream("m", "s", "u")]
+    assert deltas == ["Hi"]

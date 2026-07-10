@@ -1,3 +1,6 @@
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 
 from app.core.errors import LLMUnavailableError
@@ -63,6 +66,59 @@ class OllamaClient:
             )
             set_output(llm_span, content)
             return content
+
+    async def chat_stream(
+        self,
+        model: str,
+        system: str,
+        user: str,
+        *,
+        temperature: float = 0.0,
+    ) -> AsyncIterator[str]:
+        """Streaming variant of chat: yields content deltas as Ollama emits
+        them (NDJSON lines). The final line carries the token counts, so the
+        LLM span keeps the same attributes as the non-streaming path."""
+        payload: dict = {
+            "model": model,
+            "stream": True,
+            "options": {"temperature": temperature},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        with span("ollama.chat", "LLM", input_value=user) as llm_span:
+            chunks: list[str] = []
+            prompt_tokens: int | None = None
+            completion_tokens: int | None = None
+            try:
+                async with self._client.stream("POST", "/api/chat", json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except ValueError as exc:
+                            raise LLMUnavailableError(
+                                f"Ollama stream returned a non-JSON line: {exc}"
+                            ) from exc
+                        delta = (data.get("message") or {}).get("content", "")
+                        if delta:
+                            chunks.append(delta)
+                            yield delta
+                        if data.get("done"):
+                            prompt_tokens = data.get("prompt_eval_count")
+                            completion_tokens = data.get("eval_count")
+            except httpx.HTTPError as exc:
+                raise LLMUnavailableError(f"Ollama streaming chat call failed: {exc}") from exc
+            set_llm_details(
+                llm_span,
+                model=model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
+            set_output(llm_span, "".join(chunks))
 
     async def is_reachable(self) -> bool:
         try:
