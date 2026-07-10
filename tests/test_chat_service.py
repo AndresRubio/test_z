@@ -121,7 +121,7 @@ async def test_greeting_welcome_is_localized_per_site():
 
 async def test_greeting_bundled_with_question_still_runs_pipeline():
     scored = [ScoredVariant(variant=make_variant(), score=2.0)]
-    service, judge, retriever, llm = _service(results=scored)
+    service, judge, _, _ = _service(results=scored)
     result = await service.handle(1, "hi, bestes Hundefutter?")
     assert result.answer == "generated answer"
     assert judge.calls == ["hi, bestes Hundefutter?"]  # not treated as a greeting

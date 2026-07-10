@@ -60,7 +60,13 @@ class BM25Retriever:
         scores = self._indexes[site_id].get_scores(tokens)
         pet = facets.detect_pet_type(query)  # authoritative -> hard filter
         form = facets.detect_food_form(query)  # text-derived -> soft re-rank
-        matched = [(v, float(s)) for v, s in zip(self._variants[site_id], scores) if s > 0.0]
+        # strict=True is an invariant check, not a behavior change: BM25Okapi
+        # returns exactly one score per corpus document by construction.
+        matched = [
+            (v, float(s))
+            for v, s in zip(self._variants[site_id], scores, strict=True)
+            if s > 0.0
+        ]
         kept = [(v, s) for v, s in matched if pet is None or v.pet_type == pet]
         if pet is not None or form is not None:
             # Supervision signal: which facets fired and what the hard pet

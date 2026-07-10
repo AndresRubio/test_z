@@ -8,30 +8,30 @@ from tests.conftest import DATASET_PATH
 
 
 def _record(**overrides):
-    base = dict(
-        product_id=1,
-        article_id=10,
-        variant_id="1.0",
-        site_id=1,
-        locale="de-DE",
-        pet_type="DOGS",
-        brands="TestBrand",
-        product_name="Test Product",
-        variant_name="1kg",
-        summary="plain",
-        description="plain",
-        ingredients="",
-        feeding_recommendations="",
-        price=9.99,
-        currency="EUR",
-        discount_label=None,
-        rating_average=4.5,
-        rating_count=10,
-        stock_units=5,
-        margin_pct=10.0,
-        monthly_sales_units=1,
-        revenue_last_30d=1.0,
-    )
+    base = {
+        "product_id": 1,
+        "article_id": 10,
+        "variant_id": "1.0",
+        "site_id": 1,
+        "locale": "de-DE",
+        "pet_type": "DOGS",
+        "brands": "TestBrand",
+        "product_name": "Test Product",
+        "variant_name": "1kg",
+        "summary": "plain",
+        "description": "plain",
+        "ingredients": "",
+        "feeding_recommendations": "",
+        "price": 9.99,
+        "currency": "EUR",
+        "discount_label": None,
+        "rating_average": 4.5,
+        "rating_count": 10,
+        "stock_units": 5,
+        "margin_pct": 10.0,
+        "monthly_sales_units": 1,
+        "revenue_last_30d": 1.0,
+    }
     base.update(overrides)
     return base
 
@@ -43,7 +43,10 @@ def _load(tmp_path, records, **kwargs):
 
 
 def test_strip_html_removes_tags_entities_and_collapses_whitespace():
-    raw = "Robuster <strong>Ball</strong>,&nbsp;für Wurf- &amp; Apportierspiele<br>\n<ul><li>Item</li></ul>"
+    raw = (
+        "Robuster <strong>Ball</strong>,&nbsp;für Wurf- &amp; Apportierspiele<br>\n"
+        "<ul><li>Item</li></ul>"
+    )
     assert strip_html(raw) == "Robuster Ball, für Wurf- & Apportierspiele Item"
 
 
