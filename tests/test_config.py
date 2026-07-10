@@ -53,3 +53,26 @@ def test_tracing_defaults():
     assert s.tracing_enabled is False
     assert s.phoenix_endpoint == "http://localhost:6006/v1/traces"
     assert s.phoenix_project_name == "assistant"
+
+
+def test_ollama_tuning_defaults():
+    s = Settings(_env_file=None)
+    assert s.num_thread is None  # None -> Ollama auto-detects
+    assert s.num_ctx == 4096
+    assert s.top_p == 0.9
+    assert s.keep_alive == "30m"
+    assert s.judge_num_predict == 16
+
+
+def test_ollama_tuning_env_override(monkeypatch):
+    monkeypatch.setenv("ZA_NUM_THREAD", "8")
+    monkeypatch.setenv("ZA_NUM_CTX", "8192")
+    monkeypatch.setenv("ZA_TOP_P", "0.5")
+    monkeypatch.setenv("ZA_KEEP_ALIVE", "1h")
+    monkeypatch.setenv("ZA_JUDGE_NUM_PREDICT", "32")
+    s = Settings(_env_file=None)
+    assert s.num_thread == 8
+    assert s.num_ctx == 8192
+    assert s.top_p == 0.5
+    assert s.keep_alive == "1h"
+    assert s.judge_num_predict == 32

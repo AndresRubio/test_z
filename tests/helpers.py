@@ -39,7 +39,17 @@ class FakeLLM:
         self.stream_error = stream_error
         self.calls = []
 
-    async def chat(self, model, system, user, *, temperature=0.0, json_mode=False):
+    async def chat(
+        self,
+        model,
+        system,
+        user,
+        *,
+        temperature=0.0,
+        json_mode=False,
+        history=None,
+        num_predict=None,
+    ):
         self.calls.append(
             {
                 "model": model,
@@ -47,19 +57,22 @@ class FakeLLM:
                 "user": user,
                 "temperature": temperature,
                 "json_mode": json_mode,
+                "history": history,
+                "num_predict": num_predict,
             }
         )
         if self.error is not None:
             raise self.error
         return self.responses.pop(0)
 
-    async def chat_stream(self, model, system, user, *, temperature=0.0):
+    async def chat_stream(self, model, system, user, *, temperature=0.0, history=None):
         self.calls.append(
             {
                 "model": model,
                 "system": system,
                 "user": user,
                 "temperature": temperature,
+                "history": history,
                 "streaming": True,
             }
         )

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel
 
 from app.api.schemas import (
+    ChatTurn,
     DoneEvent,
     ErrorEvent,
     ProductCard,
@@ -40,6 +41,13 @@ class ChatResult:
     products: list[ScoredVariant] = field(default_factory=list)
 
 
+def _history_messages(history: list[ChatTurn] | None) -> list[dict[str, str]]:
+    """Prior turns as plain chat messages for the Generator (system, *history,
+    user). Validated by ChatRequest; the server keeps no copy — stateless
+    multi-turn, option (a) of the conversation design doc."""
+    return [{"role": turn.role, "content": turn.content} for turn in history or []]
+
+
 def _word_deltas(text: str) -> Iterator[str]:
     """Split a static answer into word-sized chunks (each keeps its trailing
     whitespace, so the pieces rejoin to the exact original). Lets the streaming
@@ -61,20 +69,35 @@ class ChatService:
         self._repository = repository
         self._settings = settings
 
-    async def handle(self, site_id: int, query: str) -> ChatResult:
+    async def handle(
+        self, site_id: int, query: str, history: list[ChatTurn] | None = None
+    ) -> ChatResult:
         with span("chat", "CHAIN", input_value=query) as chat_span:
             chat_span.set_attribute("site_id", site_id)
-            result = await self._handle_inner(site_id, query)
+            result = await self._handle_inner(site_id, query, history)
             set_output(chat_span, result.answer)
             return result
 
-    async def _handle_inner(self, site_id: int, query: str) -> ChatResult:
+    async def _handle_inner(
+        self, site_id: int, query: str, history: list[ChatTurn] | None = None
+    ) -> ChatResult:
         site = self._repository.site_for(site_id)  # UnknownSiteError -> 404
 
         if is_greeting(query):
             logger.info("greeting fast-path", extra={"site_id": site_id})
             return ChatResult(answer=GREETINGS[site.locale])
 
+        # TO_EXPLAIN — the Judge (and the Retriever below) sees ONLY the current
+        # query, never `history`; both were built for one self-contained query.
+        # So a fragment follow-up like "what about the wet one?" can be
+        # mis-declined here (no product angle visible) or mis-retrieved below
+        # (no referent to search for) even though the Generator gets the
+        # transcript. The designed evolution is a query-rewrite/coreference step
+        # BEFORE this pipeline that makes the turn self-contained (design doc
+        # § Multi-turn); the transcript itself is client-resent and trusted —
+        # the stateless-history (option a) trade-off vs a server-side
+        # conversation store (option b). See
+        # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
         if not await self._timed("judge", self._judge.is_on_topic(query)):
             logger.info("judge declined query", extra={"site_id": site_id})
             return ChatResult(answer=DECLINES[site.locale])
@@ -96,11 +119,13 @@ class ChatService:
         # generation runs its answer is returned verbatim. Nothing verifies it
         # stayed grounded in these cards, invented no product/price, kept the
         # Site locale, or leaked no system prompt; grounding is prompt-only. The
-        # input side is open too — the raw query is interpolated straight into
-        # the prompt (no injection defence), with no moderation and no pet-health
-        # disclaimer. Options: a post-generation verifier (grounding/leak/locale
-        # check, applied here and before the streaming `done`) and/or query
-        # sanitisation before the prompt. See
+        # input side now has a first mitigation — the query is fenced in
+        # <query> tags and the system prompt asserts an instruction hierarchy
+        # (see the TO_EXPLAIN in app/llm/prompts.py) — but resent `history`
+        # turns are passed through unfenced, and there is still no moderation
+        # and no pet-health disclaimer. Options: a post-generation verifier
+        # (grounding/leak/locale check, applied here and before the streaming
+        # `done`) and/or an injection classifier before the prompt. See
         # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Safetynet.
         context = render_product_context(candidates, self._settings.context_chars_per_product)
         answer = await self._timed(
@@ -110,11 +135,14 @@ class ChatService:
                 system=generation_system(site.locale),
                 user=generation_user_prompt(query, context),
                 temperature=self._settings.temperature,
+                history=_history_messages(history),
             ),
         )
         return ChatResult(answer=answer, products=candidates)
 
-    async def handle_stream(self, site_id: int, query: str) -> AsyncIterator[BaseModel]:
+    async def handle_stream(
+        self, site_id: int, query: str, history: list[ChatTurn] | None = None
+    ) -> AsyncIterator[BaseModel]:
         """Streaming twin of handle(): same Judge/Retriever stages and spans,
         but yields validated SSE event models instead of one ChatResult.
         Raises only before the first event — after that, failures become a
@@ -135,6 +163,8 @@ class ChatService:
                 yield DoneEvent(answer=answer)
                 return
 
+            # Judge and Retriever see only the current query, never `history` —
+            # see the TO_EXPLAIN in _handle_inner; the same trade-off applies here.
             if not await self._timed("judge", self._judge.is_on_topic(query)):
                 logger.info("judge declined query", extra={"site_id": site_id})
                 answer = DECLINES[site.locale]
@@ -171,6 +201,7 @@ class ChatService:
                     system=generation_system(site.locale),
                     user=generation_user_prompt(query, context),
                     temperature=self._settings.temperature,
+                    history=_history_messages(history),
                 )
                 async with aclosing(deltas):
                     async for delta in deltas:

@@ -302,7 +302,8 @@
   <div id="empty-state">
     <div class="mark">🐾</div>
     <h2>Ask about products</h2>
-    <p>Answers arrive in the Site's locale, with the product cards they're based on.</p>
+    <p>Answers arrive in the Site's locale, with the product cards they're based on.
+       Follow-up questions carry the conversation forward.</p>
   </div>
   <div id="transcript"></div>
 </main>
@@ -327,6 +328,22 @@
   const queryInput = document.getElementById("query-input");
   const sendBtn = document.getElementById("send-btn");
   const emptyState = document.getElementById("empty-state");
+
+  // Stateless multi-turn: the console owns the transcript and resends it as
+  // `history` on every request — the server stays memoryless. Caps mirror the
+  // ChatRequest contract (max 10 turns, 2000 chars per turn).
+  const MAX_HISTORY_TURNS = 10;
+  const MAX_TURN_CHARS = 2000;
+  let history = [];
+
+  function recordExchange(query, answer) {
+    if (!answer) return;
+    history.push(
+      { role: "user", content: query.slice(0, MAX_TURN_CHARS) },
+      { role: "assistant", content: answer.slice(0, MAX_TURN_CHARS) },
+    );
+    history = history.slice(-MAX_HISTORY_TURNS);
+  }
 
   function setBusy(busy) {
     queryInput.disabled = busy;
@@ -492,7 +509,7 @@
     }
   }
 
-  function renderStream(siteId) {
+  function renderStream(siteId, query) {
     // Builds the assistant bubble incrementally: meta + cards on `retrieved`,
     // answer text on `token`, raw-JSON details on `done`.
     const wrap = document.createElement("div");
@@ -526,6 +543,7 @@
         answer.replaceChildren(answerNode(text));
       },
       done(payload) {
+        recordExchange(query, payload.answer); // only completed turns join the transcript
         meta.textContent = "Site " + siteId + " · " + retrieved.count + " product(s) retrieved";
         answer.replaceChildren(answerNode(payload.answer));
         const raw = document.createElement("details");
@@ -586,7 +604,7 @@
       response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: siteId, query, stream: true }),
+        body: JSON.stringify({ site_id: siteId, query, stream: true, history }),
       });
     } catch {
       // Genuine network failure: the request never got a response.
@@ -601,10 +619,12 @@
       const contentType = response.headers.get("content-type") || "";
       try {
         if (contentType.startsWith("text/event-stream")) {
-          await readSse(response, renderStream(siteId));
+          await readSse(response, renderStream(siteId, query));
         } else {
           // Fallback: server answered with plain JSON (e.g. older server).
-          renderAnswer(siteId, await response.json());
+          const body = await response.json();
+          renderAnswer(siteId, body);
+          recordExchange(query, body.answer);
         }
         queryInput.value = ""; // clear only once the reply is shown
       } catch {
@@ -620,6 +640,12 @@
       addBubble("warning", textNode(detail));
     }
     setBusy(false);
+  });
+
+  // A different Site is a different catalog and locale — a follow-up there
+  // must not inherit this conversation, so switching Sites resets the history.
+  siteSelect.addEventListener("change", () => {
+    history = [];
   });
 
   document.getElementById("retry-btn").addEventListener("click", loadHealth);

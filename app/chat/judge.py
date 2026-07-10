@@ -14,9 +14,12 @@ class Judge:
     Fails open on any failure — a false decline hurts customers more than an
     answer that is grounded in catalog data anyway (PRD trade-off)."""
 
-    def __init__(self, llm, model: str):
+    def __init__(self, llm, model: str, num_predict: int = 16):
         self._llm = llm
         self._model = model
+        # The verdict is a tiny JSON boolean — cap generation so the model
+        # stops early instead of running to its default token limit.
+        self._num_predict = num_predict
 
     async def is_on_topic(self, query: str) -> bool:
         with span("judge", "GUARDRAIL", input_value=query) as judge_span:
@@ -32,6 +35,7 @@ class Judge:
                 user=judge_user_prompt(query),
                 temperature=0.0,
                 json_mode=True,
+                num_predict=self._num_predict,
             )
         except LLMUnavailableError as exc:
             logger.warning("judge unavailable (%s); failing open", exc)

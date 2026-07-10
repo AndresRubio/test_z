@@ -53,3 +53,17 @@ async def test_llm_error_fails_open_with_warning(caplog):
     with caplog.at_level(logging.WARNING):
         assert await Judge(llm, "m").is_on_topic("anything") is True
     assert any("failing open" in r.getMessage() for r in caplog.records)
+
+
+async def test_verdict_generation_is_capped_by_num_predict():
+    llm = FakeLLM(responses=['{"on_topic": true}'])
+    await Judge(llm, "gemma4:e2b", num_predict=16).is_on_topic("dog food?")
+    assert llm.calls[0]["num_predict"] == 16
+
+
+async def test_num_predict_default_matches_settings_default():
+    from app.core.config import Settings
+
+    llm = FakeLLM(responses=['{"on_topic": true}'])
+    await Judge(llm, "m").is_on_topic("dog food?")
+    assert llm.calls[0]["num_predict"] == Settings(_env_file=None).judge_num_predict

@@ -26,12 +26,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app_settings.catalog_path, app_settings.max_plausible_price
         )
         repository = CatalogRepository(variants)
-        llm_client = OllamaClient(app_settings.ollama_base_url, app_settings.llm_timeout_seconds)
+        llm_client = OllamaClient(
+            app_settings.ollama_base_url,
+            app_settings.llm_timeout_seconds,
+            num_thread=app_settings.num_thread,
+            num_ctx=app_settings.num_ctx,
+            top_p=app_settings.top_p,
+            keep_alive=app_settings.keep_alive,
+        )
         app.state.settings = app_settings
         app.state.repository = repository
         app.state.llm_client = llm_client
         app.state.chat_service = ChatService(
-            judge=Judge(llm_client, app_settings.judge_model),
+            judge=Judge(llm_client, app_settings.judge_model, app_settings.judge_num_predict),
             retriever=build_retriever(app_settings, repository),
             llm=llm_client,
             repository=repository,

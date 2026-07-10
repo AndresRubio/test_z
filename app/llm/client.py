@@ -18,12 +18,45 @@ class OllamaClient:
         base_url: str,
         timeout_seconds: float,
         client: httpx.AsyncClient | None = None,
+        *,
+        num_thread: int | None = None,
+        num_ctx: int = 4096,
+        top_p: float = 0.9,
+        keep_alive: str = "30m",
     ):
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout_seconds, connect=5.0),
         )
+        self._num_thread = num_thread
+        self._num_ctx = num_ctx
+        self._top_p = top_p
+        self._keep_alive = keep_alive
+
+    def _options(self, temperature: float, num_predict: int | None = None) -> dict:
+        """Per-call Ollama `options`: only keys that are actually set are sent,
+        so an unset num_thread leaves Ollama's own auto-detection in charge."""
+        options: dict = {
+            "temperature": temperature,
+            "num_ctx": self._num_ctx,
+            "top_p": self._top_p,
+        }
+        if self._num_thread is not None:
+            options["num_thread"] = self._num_thread
+        if num_predict is not None:
+            options["num_predict"] = num_predict
+        return options
+
+    @staticmethod
+    def _messages(system: str, history: list[dict[str, str]] | None, user: str) -> list[dict]:
+        """system, then the client-resent prior turns, then the current user
+        message — the stateless multi-turn shape (design doc § Multi-turn)."""
+        return [
+            {"role": "system", "content": system},
+            *(history or []),
+            {"role": "user", "content": user},
+        ]
 
     async def chat(
         self,
@@ -33,15 +66,15 @@ class OllamaClient:
         *,
         temperature: float = 0.0,
         json_mode: bool = False,
+        history: list[dict[str, str]] | None = None,
+        num_predict: int | None = None,
     ) -> str:
         payload: dict = {
             "model": model,
             "stream": False,
-            "options": {"temperature": temperature},
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "keep_alive": self._keep_alive,
+            "options": self._options(temperature, num_predict),
+            "messages": self._messages(system, history, user),
         }
         if json_mode:
             payload["format"] = "json"
@@ -74,6 +107,7 @@ class OllamaClient:
         user: str,
         *,
         temperature: float = 0.0,
+        history: list[dict[str, str]] | None = None,
     ) -> AsyncIterator[str]:
         """Streaming variant of chat: yields content deltas as Ollama emits
         them (NDJSON lines). The final line carries the token counts, so the
@@ -81,11 +115,9 @@ class OllamaClient:
         payload: dict = {
             "model": model,
             "stream": True,
-            "options": {"temperature": temperature},
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "keep_alive": self._keep_alive,
+            "options": self._options(temperature),
+            "messages": self._messages(system, history, user),
         }
         with span("ollama.chat", "LLM", input_value=user) as llm_span:
             chunks: list[str] = []

@@ -29,7 +29,7 @@ async def chat(payload: ChatRequest, request: Request):
         # back the ~30s perceived latency this endpoint exists to hide — or make
         # non-streaming fast enough to not need SSE via a faster inference server,
         # which trades hosted-GPU cost against free local Ollama.
-        events = service.handle_stream(payload.site_id, payload.query)
+        events = service.handle_stream(payload.site_id, payload.query, payload.history)
         # Pull the first event before committing the response so pre-stream
         # failures (unknown site, judge-stage LLM down) still map to 404/503.
         first = await anext(events)
@@ -42,7 +42,7 @@ async def chat(payload: ChatRequest, request: Request):
 
         return StreamingResponse(frames(), media_type="text/event-stream")
 
-    result = await service.handle(payload.site_id, payload.query)
+    result = await service.handle(payload.site_id, payload.query, payload.history)
     cards = [ProductCard.from_scored(s) for s in result.products]
     return ChatResponse(
         answer=result.answer,
