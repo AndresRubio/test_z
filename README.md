@@ -158,6 +158,18 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8000/chat -X POST \
 curl -s localhost:8000/health | python3 -m json.tool
 ```
 
+Streaming (opt-in): add `"stream": true` and the same endpoint answers as
+Server-Sent Events — a `retrieved` frame with the product cards as soon as
+retrieval finishes, `token` frames as the answer generates, then a terminal
+`done` (full answer) or `error` (mid-stream failure; the HTTP status is
+already 200 by then). A stream that ends without `done` or `error` is a
+transport failure. Declines and no-match answers arrive as a single `done`.
+
+```bash
+curl -sN localhost:8000/chat -X POST -H 'Content-Type: application/json' \
+  -d '{"site_id": 1, "query": "Welches Hundefutter empfiehlst du?", "stream": true}'
+```
+
 Tests (offline — no Ollama needed), lint, live smoke test, and the eval harness
 (both need the server + Ollama running):
 
