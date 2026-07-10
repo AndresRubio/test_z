@@ -15,6 +15,7 @@ class OllamaClient:
         timeout_seconds: float,
         client: httpx.AsyncClient | None = None,
     ):
+        self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout_seconds, connect=5.0),
@@ -45,7 +46,10 @@ class OllamaClient:
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise LLMUnavailableError(f"Ollama chat call failed: {exc}") from exc
-        return response.json()["message"]["content"]
+        try:
+            return response.json()["message"]["content"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise LLMUnavailableError(f"Ollama chat returned an unexpected body: {exc}") from exc
 
     async def is_reachable(self) -> bool:
         try:
@@ -55,4 +59,5 @@ class OllamaClient:
             return False
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        if self._owns_client:
+            await self._client.aclose()
