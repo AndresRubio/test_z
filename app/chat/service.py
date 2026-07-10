@@ -1,6 +1,7 @@
 import logging
 import time
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel
@@ -126,14 +127,16 @@ class ChatService:
             parts: list[str] = []
             started = time.perf_counter()
             try:
-                async for delta in self._llm.chat_stream(
+                deltas = self._llm.chat_stream(
                     model=self._settings.chat_model,
                     system=generation_system(site.locale),
                     user=generation_user_prompt(query, context),
                     temperature=self._settings.temperature,
-                ):
-                    parts.append(delta)
-                    yield TokenEvent(delta=delta)
+                )
+                async with aclosing(deltas):
+                    async for delta in deltas:
+                        parts.append(delta)
+                        yield TokenEvent(delta=delta)
             except LLMUnavailableError:
                 logger.warning("generation failed mid-stream", extra={"site_id": site_id})
                 set_output(chat_span, "".join(parts))

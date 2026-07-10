@@ -53,9 +53,11 @@ class ErrorEvent(BaseModel):
     detail: str
 ```
 
-One helper renders frames — `sse_frame(name: str, model: BaseModel) -> str` →
+One helper renders frames — `sse_frame(event: BaseModel) -> str`, which looks
+the wire name up in an `EVENT_NAMES` type registry →
 `event: {name}\ndata: {model_dump_json()}\n\n` — and is the only place frame
-text is assembled. It accepts only `BaseModel`.
+text is assembled. It accepts only the four registered event models —
+anything else fails the registry lookup.
 
 **Required code comment (demo requirement).** At the streaming branch in
 `app/api/routes.py`, this comment must appear, stating the validation
