@@ -22,6 +22,12 @@ async def test_index_not_in_openapi_schema():
     assert "/" not in response.json()["paths"]
 
 
+async def test_index_declares_a_favicon():
+    async with client() as c:
+        response = await c.get("/")
+    assert '<link rel="icon"' in response.text
+
+
 async def test_index_page_wires_up_the_api():
     async with client() as c:
         response = await c.get("/")
