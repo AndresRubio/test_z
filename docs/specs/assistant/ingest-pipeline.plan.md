@@ -35,6 +35,10 @@ analysis in `2026-07-10-ingestion-review-design.md`:
 - **Found beyond the plan:** 2 empty-brand rows (`56322.18`/`56322.19`,
   site 15) kept with `brand: ""` — the brand is verbatim in `product_name`;
   documented in the README's Data & Ingestion section.
+- **Note on §1's HTML counts:** the figures below (`description` 298/300,
+  `summary` 258/300) counted bare tags only; the README's Data & Ingestion
+  section counts markup *or* entities (300/300 and 272/300). Both are correct
+  measurements of the same trap.
 
 ## 1. Why this exists (context)
 
@@ -112,12 +116,12 @@ Plain-function tests run each policy against the real `product_catalog_dataset.j
 
 ## 8. Acceptance criteria
 
-- [ ] Ingest report: 12 exact dups dropped, 24 quarantined, 1 pet-type conflict logged, 8 out of stock, 198 ratings nulled
-- [ ] Quarantined Variants absent from the per-Site corpus
-- [ ] Product Card serialization: no margin/sales/revenue/raw-stock fields; rating null when count 0; `in_stock` boolean; price carries Site currency
-- [ ] Normalized text has no HTML tags or entities; nutrition tables stay readable
-- [ ] Cleaned corpus partitioned by Site; no cross-Site leakage
-- [ ] Every policy specified by a TDD-first plain-function test against the real dataset
+- [x] Ingest report: 12 exact dups dropped, 24 quarantined, 1 pet-type conflict logged, 8 out of stock, 198 ratings nulled
+- [x] Quarantined Variants absent from the per-Site corpus
+- [x] Product Card serialization: no margin/sales/revenue/raw-stock fields; rating null when count 0; `in_stock` boolean; price carries Site currency
+- [x] Normalized text has no HTML tags or entities; nutrition tables stay readable
+- [x] Cleaned corpus partitioned by Site; no cross-Site leakage
+- [x] Every policy specified by a TDD-first plain-function test against the real dataset
 
 ## 9. Suggested module layout
 
