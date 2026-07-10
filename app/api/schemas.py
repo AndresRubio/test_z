@@ -28,7 +28,7 @@ class ChatRequest(BaseModel):
     # resends the transcript on every request and the server stays memoryless.
     history: list[ChatTurn] = Field(default_factory=list, max_length=MAX_HISTORY_TURNS)
 
-    # TO_IMPROVE — multi-turn is now stateless-by-contract: `history` above
+    # TO_EXPLAIN — multi-turn is now stateless-by-contract: `history` above
     # carries prior turns to the Generator, but the server still keeps no
     # transcript and trusts whatever the client resends. The remaining option:
     # (b) stateful — a `conversation_id` keys a short server-side transcript

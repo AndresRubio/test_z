@@ -15,7 +15,7 @@ Vocabulary is multilingual (de/en/es) because each Site speaks one language and
 queries arrive in any of them.
 """
 
-# TO_IMPROVE — query understanding stops at these two facets. Everything else a
+# TO_EXPLAIN — query understanding stops at these two facets. Everything else a
 # shopper says (life-stage puppy/kitten/senior, breed/size band, weight,
 # budget/price ceiling, brand as a filter, dietary & health needs like
 # grain-free or sensitive-stomach, pack size) is left to raw BM25 term overlap.

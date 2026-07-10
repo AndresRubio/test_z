@@ -114,7 +114,7 @@ class ChatService:
             logger.info("no Variants matched", extra={"site_id": site_id})
             return ChatResult(answer=NO_MATCH_ANSWERS[site.locale])
 
-        # TO_IMPROVE — the safetynet is strong structurally (Internal Fields
+        # TO_EXPLAIN — the safetynet is strong structurally (Internal Fields
         # cannot leak, Sites are hard-partitioned) but thin behaviourally: once
         # generation runs its answer is returned verbatim. Nothing verifies it
         # stayed grounded in these cards, invented no product/price, kept the

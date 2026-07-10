@@ -1,9 +1,10 @@
 # Design: Conversational maturity — gaps and improvement options
 
 **Date:** 2026-07-11
-**Status:** Exploratory — an options catalogue for future work; nothing
-committed. Anchored in the code by three `# TO_IMPROVE` markers (see
-[In-code markers](#in-code-markers)).
+**Status:** Options catalogue, partially implemented later the same day:
+§2's option (a) (stateless `history`) and §3's option B input-side fencing
+shipped; everything else remains future work. Anchored in the code by
+`# TO_EXPLAIN` markers (see [In-code markers](#in-code-markers)).
 **Motivation:** The Assistant today is a single-turn, stateless RAG
 product-finder — one `{site_id, query}` in, one grounded answer + Product Cards
 out. It answers questions well, but does not yet *hold a conversation*. This
@@ -92,6 +93,8 @@ memory.)
 - **A. Stateless multi-turn.** The client resends prior turns in a `history`
   field; the server stays memoryless. Simplest to reason about, no store, no
   expiry; cost is a larger request and trusting the client's transcript.
+  **Shipped 2026-07-11**: `history` (max 10 validated turns) goes to the
+  Generator only; the web console resends its transcript automatically.
 - **B. Stateful multi-turn.** A `conversation_id` keys a short-lived
   server-side transcript store. Smaller requests, server owns the truth; cost
   is state, TTL/eviction, and a store dependency.
@@ -150,7 +153,9 @@ Solid, mostly *by construction* (the strong kind of guarantee):
   before the terminal `done`, trading back some perceived latency).
 - **B. Input sanitisation / injection defence.** Delimit the user query,
   assert an instruction hierarchy in the system prompt, optionally a
-  cheap injection classifier.
+  cheap injection classifier. **Partially shipped 2026-07-11**: the query is
+  fenced in `<query>` tags and the generation system prompt asserts the
+  hierarchy; resent `history` turns are still unfenced, no classifier.
 - **C. Content safety.** A pet-health disclaimer where health intent is
   detected; a moderation pass on abusive input.
 - **D. PII redaction before tracing.** Redact the query attribute on spans when
@@ -166,15 +171,20 @@ verifier** (extending #5 beyond the input-side Judge).
 
 ## In-code markers
 
-Three `# TO_IMPROVE` comments point back to this doc, one per section — the
-same "explain the trade-off where the reader will stand" convention the
-streaming design uses for its required routes.py comment:
+`# TO_EXPLAIN` comments point back to this doc — the same "explain the
+trade-off where the reader will stand" convention the streaming design uses
+for its required routes.py comment. The ones anchored to this doc's sections:
 
 | Marker location | Section |
 |-----------------|---------|
 | `app/catalog/facets.py` | [Entity identification](#1-entity-identification) |
-| `app/api/schemas.py` (`ChatRequest`) | [Multi-turn & follow-ups](#2-multi-turn--follow-ups) |
+| `app/api/schemas.py` (`ChatRequest.history`) | [Multi-turn & follow-ups](#2-multi-turn--follow-ups) |
+| `app/chat/service.py` (Judge call) | [Multi-turn & follow-ups](#2-multi-turn--follow-ups) |
 | `app/chat/service.py` (generation step) | [Safetynet](#3-safetynet) |
+| `app/llm/prompts.py` (query fencing) | [Safetynet](#3-safetynet) |
+
+Further `# TO_EXPLAIN` anchors outside this doc's scope (retrieval, Ollama
+tuning) are indexed in the README's "Interview anchors" table.
 
 ## Out of scope
 

@@ -25,8 +25,13 @@ flowchart LR
   [Data & Ingestion](#data--ingestion)), then
   hard-partitions Variants by Site (1 = de-DE/EUR, 3 = en-GB/GBP, 15 = es-ES/EUR).
 - **Retrieval** (`app/retrieval`): a `Retriever` protocol — the deliberate seam
-  for vector/hybrid/reranker successors. The PoC binds per-Site BM25 with a
-  name/brand boost and a minimum-match threshold.
+  for vector/hybrid/reranker successors. The default binding is per-Site BM25
+  with a name/brand boost and a minimum-match threshold; an opt-in **hybrid
+  semantic backend** (ADR 0003) fuses that BM25 leg with all-MiniLM-L6-v2
+  embeddings via Reciprocal Rank Fusion behind the same seam
+  (`ZA_RETRIEVER_BACKEND=hybrid`), falling back to BM25 with a warning when the
+  embedding stack is not installed. Both backends apply the same facet rules:
+  `pet_type` hard-filters, `food_form` soft-boosts.
 - **Chat** (`app/chat`): Judge → Retriever → Generator. The Judge is a
   prompt-only check on the tiny model; off-topic queries never reach retrieval
   or generation. Declines and no-match answers are static templates in the Site
@@ -133,6 +138,9 @@ ollama pull gemma4:e4b
 
 # 2. Environment (Python 3.12 + all dependencies)
 uv sync
+# optional — hybrid semantic retrieval (sentence-transformers; ~1 GB of wheels,
+# model downloads on first boot):
+#   uv sync --extra semantic && export ZA_RETRIEVER_BACKEND=hybrid
 
 # 3. Run
 uv run uvicorn app.main:app
@@ -168,6 +176,22 @@ transport failure. Declines and no-match answers arrive as a single `done`.
 ```bash
 curl -sN localhost:8000/chat -X POST -H 'Content-Type: application/json' \
   -d '{"site_id": 1, "query": "Welches Hundefutter empfiehlst du?", "stream": true}'
+```
+
+Multi-turn (stateless): the client may resend the transcript as `history`
+(max 10 turns of `{role, content}`); the server stays memoryless and gives the
+prior turns to the Generator only — the built-in web console does this
+automatically. The Judge and Retriever still see just the current query, so a
+bare fragment ("what about the wet one?") retrieves poorly until the roadmap's
+query-rewrite step lands — full follow-up questions work:
+
+```bash
+curl -s localhost:8000/chat -X POST -H 'Content-Type: application/json' \
+  -d '{"site_id": 3, "query": "which of those is best for a puppy?",
+       "history": [
+         {"role": "user", "content": "dry food for a sensitive stomach"},
+         {"role": "assistant", "content": "I recommend the sensitive-formula dry foods …"}
+       ]}' | python3 -m json.tool
 ```
 
 Tests (offline — no Ollama needed), lint, live smoke test, and the eval harness
@@ -243,7 +267,13 @@ the assignment's own example queries match catalog text literally. Consciously
 accepted gaps: cross-lingual queries (evaluated as `known_limitation` in the
 golden set) and paraphrase recall; tokenization has no stemming or stopwords.
 The `Retriever` protocol is the seam where multilingual vector search, hybrid
-fusion (RRF), and a reranker slot in without touching the pipeline.
+fusion (RRF), and a reranker slot in without touching the pipeline. That seam
+has since been exercised for real (ADR 0003): an opt-in hybrid backend fuses
+the unchanged BM25 leg with all-MiniLM-L6-v2 embeddings via RRF, precomputing
+Variant embeddings per Site at startup. It is deliberately **not** the default:
+the embedding model is English-centric, so it does not yet flip the
+cross-lingual `known_limitation` case — a multilingual model is a one-line
+`ZA_EMBEDDING_MODEL` swap, gated on the eval harness (roadmap #1).
 
 **The Judge fails open.** An unparseable verdict or a Judge LLM failure
 proceeds to retrieval with a warning log: a false decline hurts a customer
@@ -283,8 +313,15 @@ this PoC exists to demonstrate.
 UX inside containers is poor; `uv sync` already gives a reproducible
 environment. Containerization is on the roadmap for production.
 
-**Single-turn only.** `POST /chat` is stateless; multi-turn memory and
-streaming are roadmap items.
+**Stateless server, multi-turn by contract.** `POST /chat` streams on request
+(`"stream": true`, SSE) and accepts an optional `history` of prior turns —
+the stateless option (a) of the conversation design doc: the client owns and
+resends the transcript, the server keeps no store, and only the Generator sees
+the prior turns. The accepted trade-offs, documented at the `# TO_EXPLAIN`
+anchors: the transcript is client-trusted, and the Judge/Retriever still see
+one standalone query, so fragment follow-ups need the roadmap's
+query-rewrite/coreference step (a server-side conversation store is the
+alternative when smaller requests or a server-owned transcript matter).
 
 ## Conclusions
 
@@ -315,18 +352,59 @@ What the data work of this PoC demonstrates:
 
 ## Future Roadmap
 
-1. **Hybrid retrieval + reranker through the existing seam**: multilingual
-   embeddings, RRF fusion with BM25, then a cross-encoder reranker — gated by
-   the eval harness (the cross-lingual `known_limitation` case must flip to PASS).
+1. **Hybrid retrieval + reranker through the existing seam** — *first half
+   shipped* (ADR 0003): BM25 + all-MiniLM-L6-v2 fused with RRF, opt-in via
+   `ZA_RETRIEVER_BACKEND=hybrid`. Remaining: swap to a multilingual embedding
+   model (config-only) so the cross-lingual `known_limitation` case flips to
+   PASS under the eval harness; then a cross-encoder reranker on the fused
+   top-k; then an ANN index or vector DB (FAISS/pgvector/Qdrant) with a
+   persisted embedding store when catalogs outgrow brute-force cosine and
+   startup precompute.
 2. **Evaluation depth**: grow the golden set, add LLM-as-judge scoring for
    groundedness and answer quality, run in CI.
-3. **Query planner / agentic tool use**: replace the fixed chain with a planner
-   that can filter by price/rating/stock, compare products, and chain retrievals.
-4. **Multi-turn conversation and streaming** (SSE) on the same contract.
-5. **Guardrail hardening**: few-shot examples in `JUDGE_SYSTEM` now fix the
-   tracked confidently-wrong decline; next is a larger labeled calibration set
-   (or a stronger Judge model) plus guardrail-accuracy scoring in CI, so unseen
-   mis-decline phrasings are caught statistically rather than one at a time.
-6. **Productionization**: containerize, CI, auth and rate limiting, hosted-LLM
+3. **Query understanding: slot extraction, then a planner**. Today intent
+   stops at two rule-based facets (`pet_type` hard-filters, `food_form`
+   soft-boosts). Next: extract the slots shoppers actually state — life-stage,
+   budget/price ceiling, weight band, dietary/health needs, brand — first as
+   high-precision keyword rules, then as an LLM slot-extraction step feeding a
+   query planner that can filter by price/rating/stock, compare products, and
+   chain retrievals. Rule of thumb stays: only authoritative clean fields
+   hard-filter; derived signals soft-boost.
+4. **Deeper multi-turn** — *streaming (SSE) and stateless `history` shipped*.
+   Remaining: the query-rewrite/coreference step in front of Judge + Retriever
+   so fragment follow-ups ("what about the wet one?") become self-contained
+   queries, and optionally a server-side conversation store (`conversation_id`,
+   TTL/eviction) when the client-resent transcript stops being acceptable.
+5. **Guardrail hardening** — *input side started*: the query is fenced in
+   `<query>` tags and the system prompt asserts an instruction hierarchy.
+   Remaining, in leverage order: an **output-side verifier** (grounded in the
+   retrieved cards, no invented product/price, Site locale kept, no system-
+   prompt leak — applied before the streaming `done` too), fencing for resent
+   `history` turns, a larger labeled calibration set with guardrail-accuracy
+   scoring in CI, moderation and a pet-health disclaimer, and PII redaction on
+   traced span attributes.
+6. **Latency & cost**: `keep_alive` now holds models warm and the Judge stops
+   at a 16-token verdict; next is caching — embedding cache persisted across
+   restarts, a semantic response cache for repeated intents, and prompt/prefix
+   (KV) cache reuse for the static system + product-context blocks — plus
+   speculative decoding or a hosted-LLM backend behind the same client seam.
+7. **Productionization**: containerize, CI, auth and rate limiting, hosted-LLM
    client behind the existing interface, catalog refresh pipeline instead of
    startup ingest, metrics/dashboards on top of the Phoenix traces.
+
+## Interview anchors — `# TO_EXPLAIN`
+
+Every consciously-deferred decision is marked in the code with a
+`# TO_EXPLAIN` comment explaining the trade-off taken and its evolution path
+(`grep -rn "TO_EXPLAIN" app` lists them all). Map to the roadmap:
+
+| Anchor | Decision it explains | Roadmap |
+|---|---|---|
+| `app/retrieval/embedder.py` | all-MiniLM-L6-v2: small/fast but English-centric; multilingual model is a config swap | #1 |
+| `app/retrieval/hybrid.py` (×3) | startup precompute vs persisted store; RRF vs learned weights vs reranker; O(n) cosine vs ANN/vector DB | #1 |
+| `app/catalog/facets.py` | query understanding stops at two facets; keyword rules vs LLM slot extraction | #3 |
+| `app/api/schemas.py` | stateless client-resent `history` vs a server-side conversation store | #4 |
+| `app/chat/service.py` (Judge call) | Judge/Retriever see one standalone query; fragment follow-ups need query rewriting | #4 |
+| `app/chat/service.py` (generation) | safetynet strong structurally, thin behaviourally; output-side verifier is the highest-leverage move | #5 |
+| `app/llm/prompts.py` | `<query>` fencing is mitigation, not defence | #5 |
+| `app/core/config.py` | Ollama tuning: keep_alive vs cold loads, num_thread, num_ctx cost/quality, judge token cap | #6 |
