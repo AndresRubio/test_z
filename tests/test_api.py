@@ -1,8 +1,16 @@
-import httpx
 import json
+
+import httpx
 import pytest
 
-from app.api.schemas import DoneEvent, ErrorEvent, ProductCard, RetrievedEvent, RetrievedProducts, TokenEvent
+from app.api.schemas import (
+    DoneEvent,
+    ErrorEvent,
+    ProductCard,
+    RetrievedEvent,
+    RetrievedProducts,
+    TokenEvent,
+)
 from app.chat.service import ChatResult
 from app.core.errors import LLMUnavailableError, UnknownSiteError
 from app.main import create_app

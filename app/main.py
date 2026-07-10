@@ -4,7 +4,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes import router
-from app.ui import router as ui_router
 from app.catalog.ingest import load_catalog
 from app.catalog.repository import CatalogRepository
 from app.chat.judge import Judge
@@ -15,6 +14,7 @@ from app.core.logging import RequestIdMiddleware, setup_logging
 from app.core.tracing import setup_tracing
 from app.llm.client import OllamaClient
 from app.retrieval.bm25 import BM25Retriever
+from app.ui import router as ui_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

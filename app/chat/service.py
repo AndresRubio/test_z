@@ -17,9 +17,9 @@ from app.api.schemas import (
     TokenEvent,
 )
 from app.catalog.repository import CatalogRepository
+from app.chat.greeting import is_greeting
 from app.core.config import Settings
 from app.core.errors import LLMUnavailableError
-from app.chat.greeting import is_greeting
 from app.core.tracing import set_output, set_retrieved_documents, span
 from app.llm.prompts import (
     DECLINES,
@@ -169,7 +169,8 @@ class ChatService:
                 logger.warning("generation failed mid-stream", extra={"site_id": site_id})
                 set_output(chat_span, "".join(parts))
                 yield ErrorEvent(
-                    detail="The answer could not be completed — the language model became unavailable."
+                    detail="The answer could not be completed — "
+                    "the language model became unavailable."
                 )
                 return
             finally:

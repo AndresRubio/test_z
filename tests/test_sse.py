@@ -22,12 +22,12 @@ def _retrieved_event():
 
 
 def test_every_event_type_has_a_wire_name():
-    assert EVENT_NAMES == {
+    assert {
         RetrievedEvent: "retrieved",
         TokenEvent: "token",
         DoneEvent: "done",
         ErrorEvent: "error",
-    }
+    } == EVENT_NAMES
 
 
 @pytest.mark.parametrize(

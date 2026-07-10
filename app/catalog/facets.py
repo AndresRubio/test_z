@@ -37,8 +37,8 @@ _WET_CUES = (
 )
 # Query-side food-form words: shorter, because a searcher types "wet"/"dry", not
 # "nassfutter". These are matched against query tokens/text.
-_DRY_QUERY = _DRY_CUES + ("dry", "trocken", "seco", "seca")
-_WET_QUERY = _WET_CUES + ("wet", "nass", "húmeda", "humeda", "húmedo", "humedo", "mojada")
+_DRY_QUERY = (*_DRY_CUES, "dry", "trocken", "seco", "seca")
+_WET_QUERY = (*_WET_CUES, "wet", "nass", "húmeda", "humeda", "húmedo", "humedo", "mojada")
 
 
 def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
