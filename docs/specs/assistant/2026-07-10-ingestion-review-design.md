@@ -35,6 +35,22 @@ Conclusion of the review: **every functional requirement of the plan is met**;
 every gap is an explainability/robustness extra that the PoC deliberately
 trades away. No code change is warranted; the gaps become write-up material.
 
+### An eighth observation, beyond the advertised traps
+
+Profiling also surfaced a data-quality wart that neither the plan nor the
+seven known traps mention: **2 rows with an empty `brands` field** — variants
+`56322.18` and `56322.19` (site 15, two sizes of the same weight-control dog
+food). No sibling row carries the brand, so it cannot be repaired from within
+the dataset. Both rows survive ingest into the kept 263 with `brand: ""`.
+
+Decision (within docs-only scope): **keep the code as-is, document it.**
+Impact is limited — the brand name appears verbatim in `product_name`, so the
+BM25 name/brand boost still matches brand queries; the only visible effect is
+an empty `brand` string in those two Product Cards. The README walkthrough
+gets an "also found in profiling" note, and the production line in the
+Conclusions gains "backfill or null empty brands". Finding it shows the
+profiling went beyond the traps the assignment advertises.
+
 ## Deliverables
 
 ### 1. README section "Data & Ingestion"
@@ -66,6 +82,11 @@ Placed after "High-Level Design", before "Setup and Execution".
      to collapse to readable text.
   7. *Internal Fields next to public ones* — margin/sales/revenue/raw stock →
      excluded by construction: the domain model never parses them.
+- **Also found in profiling** (not an advertised trap): 2 rows with an empty
+  `brands` field (`56322.18`/`56322.19`, site 15, same product; brand not
+  recoverable from any sibling row) → kept with `brand: ""` — the brand is
+  verbatim in `product_name`, so retrieval is unaffected; a production ingest
+  would backfill from the name or null the field.
 - **Record accounting:** 300 → −12 dups → −1 conflict → 287 unique → −24
   quarantined → **263 retrievable** (Sites 1/3/15).
 - **What downstream gets:** per-Site, HTML-free, customer-safe Variants;
@@ -91,7 +112,8 @@ conclusions, each 2–3 sentences:
 5. **Clean once, serve every retriever** — the cleaned per-Site corpus is what
    makes the retrieval seam real; ends with one honest line on what production
    would change (per-category outlier statistics, refresh pipeline instead of
-   startup ingest, richer report for ops).
+   startup ingest, richer report for ops, backfill-or-null for the two
+   empty-brand rows).
 
 ### 3. README "Decisions and Trade-offs" slim-down
 
@@ -111,7 +133,9 @@ untracked).
 ## Verification
 
 - Every number written into the README is re-measured against
-  `product_catalog_dataset.json` (done for all counts listed here).
+  `product_catalog_dataset.json` (done for all figures listed here, including
+  the €215.64 max plausible price, the €950/€1000 quarantine cluster, the
+  conflict variant `2422691.0` on site 15, and the 2 empty-brand rows).
 - `uv run pytest` must pass before the docs commit (the README repeats the
   pinned counts; the suite proves them).
 - Hard constraint: the client's brand name appears nowhere.
