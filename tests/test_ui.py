@@ -43,3 +43,12 @@ async def test_console_requests_streaming_and_parses_sse():
         response = await c.get("/")
     assert "stream: true" in response.text  # JS object literal in the fetch body
     assert "text/event-stream" in response.text
+
+
+async def test_console_keeps_the_transcript_and_resends_it_as_history():
+    async with client() as c:
+        response = await c.get("/")
+    page = response.text
+    assert "stream: true, history" in page  # history rides along in the fetch body
+    assert "MAX_HISTORY_TURNS = 10" in page  # client cap mirrors the server contract
+    assert "recordExchange" in page  # completed turns join the client-side transcript

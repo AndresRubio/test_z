@@ -166,3 +166,110 @@ async def test_chat_stream_skips_blank_lines_and_empty_deltas():
     client = make_client(lambda req: httpx.Response(200, content=content))
     deltas = [d async for d in client.chat_stream("m", "s", "u")]
     assert deltas == ["Hi"]
+
+
+# --- history threading (stateless multi-turn) ---------------------------------
+
+
+HISTORY = [
+    {"role": "user", "content": "best dry food?"},
+    {"role": "assistant", "content": "Try Test Product."},
+]
+
+
+async def test_chat_inserts_history_between_system_and_user():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"message": {"content": "ok"}})
+
+    client = make_client(handler)
+    await client.chat("m", "sys", "what about the wet one?", history=HISTORY)
+    assert captured["json"]["messages"] == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "best dry food?"},
+        {"role": "assistant", "content": "Try Test Product."},
+        {"role": "user", "content": "what about the wet one?"},
+    ]
+
+
+async def test_chat_stream_inserts_history_between_system_and_user():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, content=_ndjson({"message": {"content": "ok"}, "done": True}))
+
+    client = make_client(handler)
+    async for _ in client.chat_stream("m", "sys", "what about the wet one?", history=HISTORY):
+        pass
+    assert captured["json"]["messages"] == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "best dry food?"},
+        {"role": "assistant", "content": "Try Test Product."},
+        {"role": "user", "content": "what about the wet one?"},
+    ]
+
+
+# --- tuning knobs in the request payload ---------------------------------------
+
+
+def make_tuned_client(handler, **tuning):
+    transport = httpx.MockTransport(handler)
+    http = httpx.AsyncClient(transport=transport, base_url="http://ollama.test")
+    return OllamaClient("http://ollama.test", 5.0, client=http, **tuning)
+
+
+def _capturing_handler(captured):
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"message": {"content": "ok"}})
+
+    return handler
+
+
+async def test_default_options_omit_num_thread_and_carry_keep_alive():
+    captured = {}
+    client = make_client(_capturing_handler(captured))
+    await client.chat("m", "s", "u", temperature=0.2)
+    payload = captured["json"]
+    assert payload["keep_alive"] == "30m"  # top-level, keeps models warm
+    assert payload["options"] == {"temperature": 0.2, "num_ctx": 4096, "top_p": 0.9}
+    assert "num_thread" not in payload["options"]  # None -> let Ollama decide
+    assert "num_predict" not in payload["options"]
+
+
+async def test_configured_tuning_reaches_the_payload():
+    captured = {}
+    client = make_tuned_client(
+        _capturing_handler(captured), num_thread=8, num_ctx=8192, top_p=0.5, keep_alive="1h"
+    )
+    await client.chat("m", "s", "u")
+    payload = captured["json"]
+    assert payload["keep_alive"] == "1h"
+    assert payload["options"]["num_thread"] == 8
+    assert payload["options"]["num_ctx"] == 8192
+    assert payload["options"]["top_p"] == 0.5
+
+
+async def test_chat_stream_payload_carries_the_same_tuning():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, content=_ndjson({"message": {"content": "ok"}, "done": True}))
+
+    client = make_client(handler)
+    async for _ in client.chat_stream("m", "s", "u", temperature=0.2):
+        pass
+    payload = captured["json"]
+    assert payload["keep_alive"] == "30m"
+    assert payload["options"] == {"temperature": 0.2, "num_ctx": 4096, "top_p": 0.9}
+
+
+async def test_num_predict_caps_generation_only_when_set():
+    captured = {}
+    client = make_client(_capturing_handler(captured))
+    await client.chat("m", "s", "u", num_predict=16)
+    assert captured["json"]["options"]["num_predict"] == 16

@@ -1,6 +1,21 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.retrieval.base import ScoredVariant
+
+# Upper bound on resent turns: enough for a short shopping conversation, small
+# enough that the Generator's context stays dominated by the product cards.
+MAX_HISTORY_TURNS = 10
+
+
+class ChatTurn(BaseModel):
+    """One prior turn of the conversation, resent verbatim by the client."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
 
 
 class ChatRequest(BaseModel):
@@ -9,16 +24,17 @@ class ChatRequest(BaseModel):
     site_id: int
     query: str = Field(min_length=1, max_length=2000)
     stream: bool = False
+    # Stateless multi-turn (design doc § Multi-turn, option a): the client
+    # resends the transcript on every request and the server stays memoryless.
+    history: list[ChatTurn] = Field(default_factory=list, max_length=MAX_HISTORY_TURNS)
 
-    # TO_IMPROVE — this contract is single-turn by construction: extra="forbid"
-    # and no conversation_id / history mean a follow-up like "what about the wet
-    # one?" arrives with no referent — no coreference, and the Generator never
-    # sees the prior turn's Product Cards. Multi-turn options: (a) stateless —
-    # the client resends prior turns in a `history` field, server stays
-    # memoryless; (b) stateful — a `conversation_id` keys a short server-side
-    # transcript. Either way a query-rewriting step must make the turn
-    # self-contained before the Judge and Retriever, which expect one standalone
-    # query. See
+    # TO_IMPROVE — multi-turn is now stateless-by-contract: `history` above
+    # carries prior turns to the Generator, but the server still keeps no
+    # transcript and trusts whatever the client resends. The remaining option:
+    # (b) stateful — a `conversation_id` keys a short server-side transcript
+    # (smaller requests, server owns the truth; costs a store, TTL/eviction).
+    # Either way a query-rewriting step must make the turn self-contained
+    # before the Judge and Retriever, which still see one standalone query. See
     # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
 
     @field_validator("query")

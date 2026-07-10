@@ -16,8 +16,10 @@ class StubChatService:
     def __init__(self, result=None, error=None):
         self.result = result
         self.error = error
+        self.calls = []
 
-    async def handle(self, site_id, query):
+    async def handle(self, site_id, query, history=None):
+        self.calls.append((site_id, query, history))
         if self.error is not None:
             raise self.error
         return self.result
@@ -115,6 +117,71 @@ async def test_validation_422(payload):
     assert response.status_code == 422
 
 
+def _turn(role="user", content="prior turn", **extra):
+    return {"role": role, "content": content, **extra}
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        [_turn()] * 11,  # more than MAX_HISTORY_TURNS
+        [_turn(role="system")],  # role outside the user|assistant literal
+        [_turn(role="tool")],
+        [_turn(content="")],  # blank turn
+        [_turn(content="x" * 2001)],  # turn over the content cap
+        [_turn(extra=True)],  # extra field inside a turn (extra="forbid")
+        "not a list",
+    ],
+)
+async def test_history_validation_422(history):
+    async with client_for(StubChatService()) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog food", "history": history}
+        )
+    assert response.status_code == 422
+
+
+async def test_history_is_optional_and_forwarded_when_present():
+    service = StubChatService(result=ChatResult(answer="ok", products=[]))
+    turns = [
+        {"role": "user", "content": "best dry food for my dog?"},
+        {"role": "assistant", "content": "Try Test Product."},
+    ]
+    async with client_for(service) as client:
+        without = await client.post("/chat", json={"site_id": 1, "query": "dog food"})
+        with_history = await client.post(
+            "/chat", json={"site_id": 1, "query": "what about the wet one?", "history": turns}
+        )
+    assert without.status_code == with_history.status_code == 200
+    assert service.calls[0][2] == []  # omitted -> validated default, no turns
+    forwarded = service.calls[1][2]
+    assert [(t.role, t.content) for t in forwarded] == [
+        ("user", "best dry food for my dog?"),
+        ("assistant", "Try Test Product."),
+    ]
+
+
+async def test_history_max_turns_boundary_is_accepted():
+    service = StubChatService(result=ChatResult(answer="ok", products=[]))
+    async with client_for(service) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog food", "history": [_turn()] * 10}
+        )
+    assert response.status_code == 200
+
+
+async def test_history_reaches_the_streaming_service_too():
+    service = StubStreamingChatService(events=[DoneEvent(answer="ok")])
+    turns = [{"role": "user", "content": "hi"}]
+    async with client_for(service) as client:
+        response = await client.post(
+            "/chat",
+            json={"site_id": 1, "query": "dog food", "stream": True, "history": turns},
+        )
+    assert response.status_code == 200
+    assert [(t.role, t.content) for t in service.calls[0][2]] == [("user", "hi")]
+
+
 async def test_health():
     async with client_for(StubChatService()) as client:
         response = await client.get("/health")
@@ -138,8 +205,10 @@ class StubStreamingChatService:
     def __init__(self, events=None, error=None):
         self.events = list(events or [])
         self.error = error
+        self.calls = []
 
-    async def handle_stream(self, site_id, query):
+    async def handle_stream(self, site_id, query, history=None):
+        self.calls.append((site_id, query, history))
         if self.error is not None:
             raise self.error
         for event in self.events:

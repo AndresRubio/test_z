@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from app.api.schemas import DoneEvent, ErrorEvent, RetrievedEvent, TokenEvent
+from app.api.schemas import ChatTurn, DoneEvent, ErrorEvent, RetrievedEvent, TokenEvent
 from app.catalog.repository import CatalogRepository
 from app.chat.service import ChatResult, ChatService
 from app.core.config import Settings
@@ -142,6 +142,33 @@ async def test_generation_failure_propagates():
         await service.handle(1, "bestes Hundefutter?")
 
 
+HISTORY = [
+    ChatTurn(role="user", content="best dry food for my dog?"),
+    ChatTurn(role="assistant", content="Try Test Product."),
+]
+HISTORY_AS_MESSAGES = [
+    {"role": "user", "content": "best dry food for my dog?"},
+    {"role": "assistant", "content": "Try Test Product."},
+]
+
+
+async def test_history_reaches_the_generator_but_not_judge_or_retriever():
+    scored = [ScoredVariant(variant=make_variant(), score=2.0)]
+    service, judge, retriever, llm = _service(results=scored)
+    await service.handle(1, "what about the wet one?", history=HISTORY)
+    assert llm.calls[-1]["history"] == HISTORY_AS_MESSAGES
+    # Judge and Retriever still see only the current, self-contained-or-not query.
+    assert judge.calls == ["what about the wet one?"]
+    assert retriever.calls == [(1, "what about the wet one?", SETTINGS.top_k)]
+
+
+async def test_omitted_history_sends_no_prior_messages():
+    scored = [ScoredVariant(variant=make_variant(), score=2.0)]
+    service, _, _, llm = _service(results=scored)
+    await service.handle(1, "bestes Hundefutter?")
+    assert llm.calls[-1]["history"] == []
+
+
 async def test_stage_timings_are_logged(caplog):
     scored = [ScoredVariant(variant=make_variant(), score=2.0)]
     service, _, _, _ = _service(results=scored)
@@ -225,3 +252,19 @@ async def test_stream_stage_timings_are_logged(caplog):
         await _events(service, 1, "Hundespielzeug")
     stages = {r.stage for r in caplog.records if hasattr(r, "stage")}
     assert {"judge", "retrieve", "generate"} <= stages
+
+
+async def test_stream_history_reaches_the_generator_with_unchanged_event_shape():
+    scored = [ScoredVariant(variant=make_variant(), score=2.0)]
+    llm = FakeLLM(deltas=["Try ", "Test ", "Product"])
+    service, judge, _, _ = _service(results=scored, llm=llm)
+    events = [
+        event
+        async for event in service.handle_stream(1, "what about the wet one?", history=HISTORY)
+    ]
+    # Same retrieved -> token* -> done shape as the history-less stream.
+    assert isinstance(events[0], RetrievedEvent)
+    assert all(isinstance(e, TokenEvent) for e in events[1:-1])
+    assert events[-1] == DoneEvent(answer="Try Test Product")
+    assert llm.calls[-1]["history"] == HISTORY_AS_MESSAGES
+    assert judge.calls == ["what about the wet one?"]  # current query only
