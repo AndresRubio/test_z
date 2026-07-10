@@ -80,6 +80,25 @@ scripts/smoke.sh
 uv run python -m evals.run_eval --base-url http://localhost:8000
 ```
 
+### PyCharm
+
+The repo ships a `.venv` provisioned by `uv sync` — point PyCharm at it rather
+than letting it create a new one:
+
+1. Open the project root, then **Settings → Project → Python Interpreter →
+   Add Interpreter → Add Local Interpreter → Existing environment**, and
+   select `.venv/bin/python`. (PyCharm 2024.3+ can instead use **Add Local
+   Interpreter → uv**, which drives `uv sync` from `pyproject.toml`/`uv.lock`
+   directly.)
+2. Mark `app/` as **Sources Root** and `tests/` as **Test Sources Root**
+   (right-click → Mark Directory as).
+3. **Settings → Tools → Python Integrated Tools** → set the default test
+   runner to **pytest**.
+4. Add a Run/Debug config: module `uvicorn`, parameters
+   `app.main:app --reload`, working directory = project root.
+5. Copy `.env.example` to `.env` and reference it from the run config's
+   environment variables (it's gitignored).
+
 ### Observability
 
 Every log line is a JSON object carrying a per-request `request_id` and, for
