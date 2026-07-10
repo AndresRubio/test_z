@@ -2,9 +2,409 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant — test console</title>
+<style>
+  :root {
+    --brand-primary: #237803;
+    --brand-primary-hover: #1c5e02;
+    --brand-primary-soft: #f1fce8;
+    --brand-primary-border: #daefc8;
+    --brand-accent: #ffda00;
+    --promo: #c41016;
+    --promo-soft: #fff6d1;
+    --rating: #dc7d05;
+    --success: #037d58;
+    --error: #bf2b2b;
+    --error-soft: #fbd5d7;
+    --text: #343332;
+    --text-subtle: #706e6a;
+    --surface: #ffffff;
+    --page: #faf8f5;
+    --border: #e5e2dc;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--page);
+  }
+  header {
+    background: var(--brand-accent);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+  }
+  .header-inner {
+    max-width: 56rem;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .header-inner h1 { font-size: 1.1rem; margin: 0; }
+  .header-inner h1 .paw { margin-right: 0.35rem; }
+  .header-inner label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    margin-left: auto;
+  }
+  select {
+    font: inherit;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--surface);
+  }
+  .pill {
+    font-size: 0.78rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-subtle);
+  }
+  .pill.ok { color: var(--success); border-color: var(--success); }
+  .pill.bad { color: var(--error); border-color: var(--error); }
+  #banner {
+    max-width: 56rem;
+    margin: 1rem auto 0;
+    padding: 0.75rem 1rem;
+    background: var(--error-soft);
+    color: var(--error);
+    border: 1px solid var(--error);
+    border-radius: 0.5rem;
+  }
+  #banner button { margin-left: 0.75rem; }
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  #transcript {
+    max-width: 56rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .bubble {
+    padding: 0.7rem 1rem;
+    border-radius: 1rem;
+    max-width: 85%;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--brand-primary-soft);
+    border: 1px solid var(--brand-primary-border);
+    border-bottom-right-radius: 0.25rem;
+  }
+  .bubble.assistant {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 0.25rem;
+    max-width: 100%;
+  }
+  .bubble.warning {
+    align-self: center;
+    background: var(--error-soft);
+    color: var(--error);
+    border: 1px solid var(--error);
+    font-size: 0.9rem;
+  }
+  .meta {
+    font-size: 0.75rem;
+    color: var(--text-subtle);
+    margin-bottom: 0.3rem;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+  }
+  .card .name { font-weight: 600; }
+  .card .variant, .card .brand { color: var(--text-subtle); }
+  .card .price { font-weight: 700; font-size: 1rem; }
+  .badges { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .badge {
+    font-size: 0.72rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+  }
+  .badge.pet { color: var(--brand-primary); background: var(--brand-primary-soft); }
+  .badge.discount { color: var(--promo); background: var(--promo-soft); }
+  .badge.stock-in { color: var(--success); }
+  .badge.stock-out { color: var(--error); }
+  .stars { color: var(--rating); }
+  details.raw { margin-top: 0.6rem; font-size: 0.78rem; }
+  details.raw summary { cursor: pointer; color: var(--text-subtle); }
+  details.raw pre {
+    overflow-x: auto;
+    background: var(--page);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.6rem;
+  }
+  .typing { color: var(--text-subtle); font-style: italic; }
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+  }
+  #composer {
+    max-width: 56rem;
+    margin: 0 auto;
+    display: flex;
+    gap: 0.5rem;
+  }
+  #query-input {
+    flex: 1;
+    font: inherit;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--page);
+  }
+  #query-input:focus { outline: 2px solid var(--brand-primary); }
+  #send-btn {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: var(--brand-primary);
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.3rem;
+    cursor: pointer;
+  }
+  #send-btn:hover:not(:disabled) { background: var(--brand-primary-hover); }
+  #send-btn:disabled, #query-input:disabled { opacity: 0.55; cursor: not-allowed; }
+</style>
 </head>
 <body>
-<p>Assistant test console — UI arrives in the next commit.</p>
+<header>
+  <div class="header-inner">
+    <h1><span class="paw">🐾</span>Assistant test console</h1>
+    <label>Site
+      <select id="site-select" disabled></select>
+    </label>
+    <span id="status-pill" class="pill">checking…</span>
+  </div>
+</header>
+<div id="banner" hidden>
+  Server not reachable — is <code>uv run uvicorn app.main:app</code> running?
+  <button id="retry-btn">Retry</button>
+</div>
+<main><div id="transcript"></div></main>
+<footer>
+  <form id="composer">
+    <input id="query-input" placeholder="Ask about products…" maxlength="2000"
+           autocomplete="off" disabled>
+    <button id="send-btn" type="submit" disabled>Send</button>
+  </form>
+</footer>
+<script>
+  const siteSelect = document.getElementById("site-select");
+  const statusPill = document.getElementById("status-pill");
+  const banner = document.getElementById("banner");
+  const transcript = document.getElementById("transcript");
+  const composer = document.getElementById("composer");
+  const queryInput = document.getElementById("query-input");
+  const sendBtn = document.getElementById("send-btn");
+
+  function setBusy(busy) {
+    queryInput.disabled = busy;
+    sendBtn.disabled = busy;
+    siteSelect.disabled = busy;
+    if (!busy) queryInput.focus();
+  }
+
+  function addBubble(cls, node) {
+    const bubble = document.createElement("div");
+    bubble.className = "bubble " + cls;
+    bubble.append(node);
+    transcript.append(bubble);
+    bubble.scrollIntoView({ block: "end" });
+    return bubble;
+  }
+
+  function textNode(text) {
+    return document.createTextNode(text);
+  }
+
+  function formatPrice(price, currency) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(price);
+    } catch {
+      return price + " " + currency;
+    }
+  }
+
+  function renderCard(card) {
+    const el = document.createElement("div");
+    el.className = "card";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = card.product_name;
+    el.append(name);
+
+    const variant = document.createElement("div");
+    variant.className = "variant";
+    variant.textContent = card.variant_name;
+    el.append(variant);
+
+    const brand = document.createElement("div");
+    brand.className = "brand";
+    brand.textContent = card.brand;
+    el.append(brand);
+
+    const price = document.createElement("div");
+    price.className = "price";
+    price.textContent = formatPrice(card.price, card.currency);
+    el.append(price);
+
+    if (card.rating_average !== null) {
+      const stars = document.createElement("div");
+      stars.className = "stars";
+      stars.textContent =
+        "★ " + card.rating_average.toFixed(1) + " (" + card.rating_count + ")";
+      el.append(stars);
+    }
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+    const pet = document.createElement("span");
+    pet.className = "badge pet";
+    pet.textContent = card.pet_type;
+    badges.append(pet);
+    if (card.discount_label) {
+      const discount = document.createElement("span");
+      discount.className = "badge discount";
+      discount.textContent = card.discount_label;
+      badges.append(discount);
+    }
+    const stock = document.createElement("span");
+    stock.className = "badge " + (card.in_stock ? "stock-in" : "stock-out");
+    stock.textContent = card.in_stock ? "In stock" : "Out of stock";
+    badges.append(stock);
+    el.append(badges);
+
+    return el;
+  }
+
+  function renderAnswer(siteId, body) {
+    const wrap = document.createElement("div");
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent =
+      "Site " + siteId + " · " + body.retrieved_products.count + " product(s) retrieved";
+    wrap.append(meta);
+
+    wrap.append(textNode(body.answer));
+
+    if (body.retrieved_products.count > 0) {
+      const cards = document.createElement("div");
+      cards.className = "cards";
+      for (const card of body.retrieved_products.products) {
+        cards.append(renderCard(card));
+      }
+      wrap.append(cards);
+    }
+
+    const raw = document.createElement("details");
+    raw.className = "raw";
+    const summary = document.createElement("summary");
+    summary.textContent = "raw JSON";
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(body, null, 2);
+    raw.append(summary, pre);
+    wrap.append(raw);
+
+    addBubble("assistant", wrap);
+  }
+
+  async function loadHealth() {
+    banner.hidden = true;
+    statusPill.textContent = "checking…";
+    statusPill.className = "pill";
+    try {
+      const response = await fetch("/health");
+      if (!response.ok) throw new Error("health " + response.status);
+      const health = await response.json();
+      siteSelect.replaceChildren(
+        ...health.sites.map((siteId) => new Option("Site " + siteId, siteId))
+      );
+      const reachable = health.ollama === "reachable";
+      statusPill.textContent = reachable ? "Ollama: reachable" : "Ollama: unreachable";
+      statusPill.className = "pill " + (reachable ? "ok" : "bad");
+      setBusy(false);
+    } catch {
+      statusPill.textContent = "offline";
+      statusPill.className = "pill bad";
+      banner.hidden = false;
+    }
+  }
+
+  composer.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const query = queryInput.value.trim();
+    if (!query || !siteSelect.value) return;
+    const siteId = Number(siteSelect.value);
+
+    addBubble("user", textNode(query));
+    queryInput.value = "";
+    setBusy(true);
+    const typing = addBubble("assistant typing", textNode("thinking…"));
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: siteId, query }),
+      });
+      typing.remove();
+      if (response.ok) {
+        renderAnswer(siteId, await response.json());
+      } else {
+        let detail = "HTTP " + response.status;
+        try {
+          detail = (await response.json()).detail || detail;
+        } catch {}
+        addBubble("warning", textNode(detail));
+      }
+    } catch {
+      typing.remove();
+      addBubble("warning", textNode("Network error — server unreachable. Check the header status."));
+      loadHealth();
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  document.getElementById("retry-btn").addEventListener("click", loadHealth);
+  loadHealth();
+</script>
 </body>
 </html>

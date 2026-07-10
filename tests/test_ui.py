@@ -20,3 +20,13 @@ async def test_index_not_in_openapi_schema():
     async with client() as c:
         response = await c.get("/openapi.json")
     assert "/" not in response.json()["paths"]
+
+
+async def test_index_page_wires_up_the_api():
+    async with client() as c:
+        response = await c.get("/")
+    page = response.text
+    assert 'id="site-select"' in page
+    assert 'id="composer"' in page
+    assert "/chat" in page
+    assert "/health" in page
