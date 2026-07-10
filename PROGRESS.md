@@ -8,10 +8,11 @@
 
 - **State:** all 15 planned tasks implemented, reviewed, and committed. Final
   whole-branch review returned **submission-ready**; its findings were applied.
-- **Git:** branch `main`, HEAD `111cc50`, **25 commits** (one logical unit per
-  task + review fixes). Working tree is clean except for one untracked file —
-  see [Open items](#open-items--decisions-pending).
-- **Tests:** `93 passed, 0 warnings`; `ruff check` clean. (Re-run to confirm —
+- **Git:** branch `main`; history is one logical commit per task plus review
+  fixes (run `git rev-parse --short HEAD` / `git rev-list --count HEAD` for the
+  current SHA and count — concurrent sessions keep committing docs). Working
+  tree is clean.
+- **Tests:** `96 passed, 0 warnings`; `ruff check` clean. (Re-run to confirm —
   commands below.)
 - **Live eval:** `12/12` against real Ollama, plus **1 deliberately documented
   known-limitation** (not a failure — see below).
@@ -129,7 +130,7 @@ request → on-topic; weather / pet-trivia → off-topic). The golden query is k
 passes the live eval end-to-end (judged on-topic + BM25 returns
 56306/56321/56322), with every off-topic case still declined. Validated
 deterministically at temp 0 (the Judge runs at `temperature=0.0`); offline suite
-still `93 passed`, ruff clean. The general caveat still holds — a tiny model can
+still green (`96 passed`), ruff clean. The general caveat still holds — a tiny model can
 err on an unseen phrasing — so a larger labeled calibration set + CI accuracy
 scoring stays on the README roadmap.
 
@@ -144,7 +145,7 @@ ollama pull gemma4:e4b
 uv sync
 
 # Tests (offline — no Ollama needed), lint
-uv run pytest                        # expect: 93 passed, 0 warnings
+uv run pytest                        # expect: 96 passed, 0 warnings
 uv run ruff check app tests evals    # expect: clean
 
 # Server
@@ -161,15 +162,11 @@ Phoenix container on `:6006`. OpenInference spans: `chat` (CHAIN), `judge`
 
 ## Open items / decisions pending
 
-1. **Untracked file:** `docs/specs/assistant/ingest-pipeline.plan.md` is present
-   but not committed (appeared after the tree was last clean — likely from the
-   background investigation session). Decide whether it belongs in the repo
-   before it's committed by accident. It was **not** part of the 15-task plan.
-2. **What ships in the submission:** `docs/` planning artifacts and
+1. **What ships in the submission:** `docs/` planning artifacts and
    `AGENTS.md` / `CONTEXT.md` are currently tracked. `docs/agents/` and the plan
    file itself are gitignored. The owner should decide whether the planning
    material ships with the take-home or is stripped.
-3. **Git submission logistics** (remote, push) are the **owner's** to handle per
+2. **Git submission logistics** (remote, push) are the **owner's** to handle per
    the PRD. Local history is clean and ready.
 
 ## Where the detail lives
@@ -184,4 +181,5 @@ Phoenix container on `:6006`. OpenInference spans: `chat` (CHAIN), `judge`
   the BM25 tiny-corpus negative-IDF fixture fix, and the Judge false-decline
   integrity resolution (`c10daf6`).
 - **Graded write-up:** `README.md` — the 4 mandated sections, architecture
-  mermaid diagram, ingest table, and the trade-off/roadmap disclosures.
+  mermaid diagram, the Data & Ingestion walkthrough, and the
+  trade-off/roadmap disclosures.

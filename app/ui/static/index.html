@@ -476,9 +476,13 @@
       const response = await fetch("/health");
       if (!response.ok) throw new Error("health " + response.status);
       const health = await response.json();
+      const prevSite = siteSelect.value;
       siteSelect.replaceChildren(
         ...health.sites.map((siteId) => new Option("Site " + siteId, siteId))
       );
+      if ([...siteSelect.options].some((o) => o.value === prevSite)) {
+        siteSelect.value = prevSite;
+      }
       const reachable = health.ollama === "reachable";
       statusPill.textContent = reachable ? "Ollama: reachable" : "Ollama: unreachable";
       statusPill.className = "pill " + (reachable ? "ok" : "bad");
@@ -497,33 +501,42 @@
     const siteId = Number(siteSelect.value);
 
     addBubble("user", textNode(query));
-    queryInput.value = "";
     setBusy(true);
     const typing = addBubble("assistant typing", typingDots());
 
+    let response;
     try {
-      const response = await fetch("/chat", {
+      response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ site_id: siteId, query }),
       });
-      typing.remove();
-      if (response.ok) {
-        renderAnswer(siteId, await response.json());
-      } else {
-        let detail = "HTTP " + response.status;
-        try {
-          detail = (await response.json()).detail || detail;
-        } catch {}
-        addBubble("warning", textNode(detail));
-      }
     } catch {
+      // Genuine network failure: the request never got a response.
       typing.remove();
       addBubble("warning", textNode("Network error — server unreachable. Check the header status."));
-      loadHealth();
-    } finally {
-      setBusy(false);
+      loadHealth(); // owns the composer's enabled state after a network error
+      return;
     }
+
+    typing.remove();
+    if (response.ok) {
+      try {
+        renderAnswer(siteId, await response.json());
+        queryInput.value = ""; // clear only once the reply is shown
+      } catch {
+        // The server responded, but the body was not the shape we expected.
+        addBubble("warning", textNode("Unexpected response from server — the reply could not be read."));
+      }
+    } else {
+      let detail = "HTTP " + response.status;
+      try {
+        const d = (await response.json()).detail;
+        if (d) detail = typeof d === "string" ? d : JSON.stringify(d);
+      } catch {}
+      addBubble("warning", textNode(detail));
+    }
+    setBusy(false);
   });
 
   document.getElementById("retry-btn").addEventListener("click", loadHealth);
