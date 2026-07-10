@@ -21,7 +21,8 @@ flowchart LR
 ```
 
 - **Catalog** (`app/catalog`): ingest applies five data-quality policies to
-  `product_catalog_dataset.json` and reports what it did (see Decisions), then
+  `product_catalog_dataset.json` and reports what it did (see
+  [Data & Ingestion](#data--ingestion)), then
   hard-partitions Variants by Site (1 = de-DE/EUR, 3 = en-GB/GBP, 15 = es-ES/EUR).
 - **Retrieval** (`app/retrieval`): a `Retriever` protocol — the deliberate seam
   for vector/hybrid/reranker successors. The PoC binds per-Site BM25 with a
@@ -34,6 +35,91 @@ flowchart LR
   no-match) return 200 with `products: [], count: 0`; unknown Site → 404 naming
   the valid Sites; malformed body → 422; Ollama unreachable *during generation*
   → 503 (see the note on the conditional 503 in Decisions).
+
+## Data & Ingestion
+
+The dataset (`product_catalog_dataset.json`) is 300 rows — one row is one
+Variant on one Site — split cleanly across three disjoint Sites × 100 rows
+(1 = de-DE/EUR, 3 = en-GB/GBP, 15 = es-ES/EUR), 22 fields per row, 150 DOGS /
+150 CATS. It ships with deliberate data-quality traps. Ingest
+(`app/catalog/ingest.py`) runs once at startup, is deterministic, and defuses
+every trap with an explicit policy; every count below is pinned by
+`test_real_dataset_counts_match_the_known_traps`, so any ingest change that
+shifts an outcome fails the suite.
+
+Walking the pipeline, trap by trap:
+
+1. **Same row twice.** 12 rows are byte-identical copies of another row →
+   dropped. Duplicates are keyed by (`site_id`, `variant_id`) and compared as
+   full records, so only true copies are dropped silently.
+2. **One Variant, two species.** Variant `2422691.0` (site 15) appears twice —
+   once as DOGS, once as CATS. Same key, different content: a conflict, not a
+   copy. The first record is kept (deterministic, idempotent) and the conflict
+   is logged as a warning.
+3. **Unrated products look terrible.** 198 raw rows carry
+   `rating_average: 0.0` with `rating_count: 0`. Taken literally, "no rating
+   yet" reads as "worst possible rating" — so the rating is nulled whenever
+   the count is 0. (Counting nuance: 198 counts raw feed rows as a
+   source-quality signal; after dedup 192 distinct Variants are affected, 174
+   of which survive quarantine.)
+4. **The €950 food packs.** 24 Variants cluster at €950–1000 — food and
+   cat-litter multi-packs — while nothing else in the catalog costs more than
+   €215.64. They are quarantined, not repaired: excluded from retrieval but
+   counted and logged with their prices. The threshold
+   (`ZA_MAX_PLAUSIBLE_PRICE`, default 500) sits in that wide empty gap; a
+   production version would use per-category outlier statistics instead of
+   one flat cap.
+5. **Zero stock.** 8 Variants have zero stock units. They stay retrievable —
+   hiding them would hide the product a customer asks about — but are exposed
+   as `in_stock: false` so the answer can steer to alternatives.
+6. **HTML everywhere.** Markup or entities appear in every `description`
+   (300/300) and in most `summary` (272/300), `ingredients` (217/300) and
+   `feeding_recommendations` (209/300) fields — tables (176 rows), lists
+   (297 rows), inline markup, encoded entities. Text is normalized by
+   stripping tags *first* and decoding entities *second*: the order matters,
+   because the catalog encodes real comparisons as entities (`&lt;25kg` →
+   `<25kg`) and decoding first would let the tag-stripper eat legitimate
+   content. Verified against the real data: nutrition and size tables
+   collapse to readable text. Product and variant names are already clean and
+   pass through untouched.
+7. **Internal Fields sit next to public ones.** Every row carries
+   `margin_pct`, `monthly_sales_units`, `revenue_last_30d` and raw
+   `stock_units` adjacent to customer-facing fields. They are excluded **by
+   construction**: the domain model (`app/catalog/models.py`) has no such
+   fields, so no code path — present or future — can leak them into a
+   response.
+
+Beyond the advertised traps, profiling also found **2 rows with an empty
+`brands` field** (`56322.18`/`56322.19`, site 15, two sizes of one product;
+no sibling row carries the brand, so it is not repairable from within the
+dataset). They are kept as-is: the brand appears verbatim in `product_name`,
+so retrieval is unaffected, and the only visible effect is an empty `brand`
+string on those two Product Cards. A production ingest would backfill the
+field from the name, or null it.
+
+**Record accounting:** 300 raw → −12 exact duplicates → −1 conflicting
+duplicate → 287 unique Variants → −24 quarantined → **263 retrievable**
+across Sites 1/3/15.
+
+**What downstream gets:** per-Site, HTML-free, customer-safe Variants,
+hard-partitioned by `CatalogRepository`; a per-Site BM25 index built over the
+cleaned text with a name/brand boost; an `IngestReport` with all counts,
+logged at startup.
+
+**Deliberate simplifications** — a fuller pipeline would add these; the PoC
+consciously trades them away:
+
+- The report carries counts only; per-row quarantine and conflict detail goes
+  to warning logs rather than a structured quarantine list.
+- HTML is stripped with a regex, not a structure-preserving parser
+  (`<li>` → bullets, tables → "label: value" lines). Verified adequate on
+  this dataset: zero cell-concatenation cases, readable tables.
+- A malformed row fails ingest loudly at startup instead of being quarantined
+  with a reason: for a startup-ingest PoC, a broken feed should stop the
+  service, not degrade it silently.
+- The searchable text is assembled inside the BM25 binding; the retrieval
+  seam is the `Retriever` protocol itself, so a vector successor re-derives
+  its corpus from the same cleaned Variants.
 
 ## Setup and Execution
 
