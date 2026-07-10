@@ -500,9 +500,9 @@
     meta.className = "meta";
     meta.textContent = "Site " + siteId + " · retrieving…";
     wrap.append(meta);
-    // answerNode() returns a DocumentFragment: once appended its children are
-    // flattened into `wrap` and the fragment itself is left empty, so it can't
-    // be used as a live update target. Wrap it in a real element instead.
+    // answerNode() returns a DocumentFragment, which empties itself once
+    // appended — so keep a real element as the live update target and
+    // re-render a fresh fragment into it on every update.
     const answer = document.createElement("div");
     answer.append(answerNode(""));
     wrap.append(answer);
@@ -523,11 +523,11 @@
       },
       token(payload) {
         text += payload.delta;
-        answer.textContent = text;
+        answer.replaceChildren(answerNode(text));
       },
       done(payload) {
         meta.textContent = "Site " + siteId + " · " + retrieved.count + " product(s) retrieved";
-        answer.textContent = payload.answer;
+        answer.replaceChildren(answerNode(payload.answer));
         const raw = document.createElement("details");
         raw.className = "raw";
         const summary = document.createElement("summary");
