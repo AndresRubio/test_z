@@ -66,6 +66,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "rank-bm25" },
@@ -74,6 +75,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "opentelemetry-sdk" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -85,6 +87,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1" },
+    { name = "opentelemetry-api", specifier = ">=1.20" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings", specifier = ">=2.3" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
@@ -93,6 +96,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "opentelemetry-sdk", specifier = ">=1.20" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "ruff", specifier = ">=0.5" },

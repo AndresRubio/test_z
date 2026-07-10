@@ -32,7 +32,8 @@ flowchart LR
   locale — zero wasted compute.
 - **API** (`app/api`): `POST /chat`, `GET /health`. Handled cases (off-topic,
   no-match) return 200 with `products: [], count: 0`; unknown Site → 404 naming
-  the valid Sites; malformed body → 422; Ollama down → 503.
+  the valid Sites; malformed body → 422; Ollama unreachable *during generation*
+  → 503 (see the note on the conditional 503 in Decisions).
 
 ## Setup and Execution
 
@@ -134,6 +135,15 @@ fusion (RRF), and a reranker slot in without touching the pipeline.
 proceeds to retrieval with a warning log: a false decline hurts a customer
 more than an answer that is grounded in catalog data anyway. The generation
 prompt is the second line of defense.
+
+**The 503 is conditional, by design.** Because the Judge fails open and both
+the decline and no-match answers are static templates (no LLM call), an Ollama
+outage surfaces as a 503 *only* when a query actually reaches the Generator —
+i.e. it was judged on-topic and retrieval returned at least one Variant. An
+off-topic or no-match query still answers 200 from a template with Ollama down.
+That is intentional: the service fails loud only when the model was genuinely
+needed for that response. `GET /health` reports Ollama reachability separately
+for infrastructure probes.
 
 **The tiny Judge can be confidently wrong.** Fail-open handles malformed or
 missing verdicts, but the guardrail's harder failure mode is a *well-formed but
