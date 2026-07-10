@@ -11,6 +11,7 @@ from app.chat.service import ChatService
 from app.core.config import Settings
 from app.core.errors import LLMUnavailableError, UnknownSiteError
 from app.core.logging import RequestIdMiddleware, setup_logging
+from app.core.tracing import setup_tracing
 from app.llm.client import OllamaClient
 from app.retrieval.bm25 import BM25Retriever
 
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await llm_client.aclose()
 
     setup_logging()
+    setup_tracing(app_settings)
     app = FastAPI(title="Assistant", version="0.1.0", lifespan=lifespan)
     app.add_middleware(RequestIdMiddleware)
     app.include_router(router)

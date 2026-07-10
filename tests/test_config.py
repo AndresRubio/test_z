@@ -24,3 +24,10 @@ def test_env_override(monkeypatch):
     assert s.chat_model == "qwen3:8b"
     assert s.judge_model == "gemma4:e4b"
     assert s.top_k == 3
+
+
+def test_tracing_defaults():
+    s = Settings(_env_file=None)
+    assert s.tracing_enabled is False
+    assert s.phoenix_endpoint == "http://localhost:6006/v1/traces"
+    assert s.phoenix_project_name == "assistant"

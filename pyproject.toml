@@ -10,6 +10,8 @@ dependencies = [
     "pydantic-settings>=2.3",
     "httpx>=0.27",
     "rank-bm25>=0.2.2",
+    "arize-phoenix-otel>=0.16",
+    "openinference-semantic-conventions>=0.1",
 ]
 
 [dependency-groups]

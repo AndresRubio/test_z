@@ -1,6 +1,7 @@
 import httpx
 
 from app.core.errors import LLMUnavailableError
+from app.core.tracing import set_llm_details, set_output, span
 
 
 class OllamaClient:
@@ -41,15 +42,25 @@ class OllamaClient:
         }
         if json_mode:
             payload["format"] = "json"
-        try:
-            response = await self._client.post("/api/chat", json=payload)
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise LLMUnavailableError(f"Ollama chat call failed: {exc}") from exc
-        try:
-            return response.json()["message"]["content"]
-        except (KeyError, TypeError, ValueError) as exc:
-            raise LLMUnavailableError(f"Ollama chat returned an unexpected body: {exc}") from exc
+        with span("ollama.chat", "LLM", input_value=user) as llm_span:
+            try:
+                response = await self._client.post("/api/chat", json=payload)
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise LLMUnavailableError(f"Ollama chat call failed: {exc}") from exc
+            try:
+                data = response.json()
+                content = data["message"]["content"]
+            except (KeyError, TypeError, ValueError) as exc:
+                raise LLMUnavailableError(f"Ollama chat returned an unexpected body: {exc}") from exc
+            set_llm_details(
+                llm_span,
+                model=model,
+                prompt_tokens=data.get("prompt_eval_count"),
+                completion_tokens=data.get("eval_count"),
+            )
+            set_output(llm_span, content)
+            return content
 
     async def is_reachable(self) -> bool:
         try:

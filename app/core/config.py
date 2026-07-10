@@ -17,3 +17,6 @@ class Settings(BaseSettings):
     temperature: float = 0.2
     catalog_path: Path = Path("product_catalog_dataset.json")
     max_plausible_price: float = 500.0  # ingest quarantine threshold
+    tracing_enabled: bool = False
+    phoenix_endpoint: str = "http://localhost:6006/v1/traces"
+    phoenix_project_name: str = "assistant"

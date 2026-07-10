@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from app.catalog.repository import CatalogRepository
 from app.core.config import Settings
+from app.core.tracing import set_output, set_retrieved_documents, span
 from app.llm.prompts import (
     DECLINES,
     NO_MATCH_ANSWERS,
@@ -37,15 +38,27 @@ class ChatService:
         self._settings = settings
 
     async def handle(self, site_id: int, query: str) -> ChatResult:
+        with span("chat", "CHAIN", input_value=query) as chat_span:
+            chat_span.set_attribute("site_id", site_id)
+            result = await self._handle_inner(site_id, query)
+            set_output(chat_span, result.answer)
+            return result
+
+    async def _handle_inner(self, site_id: int, query: str) -> ChatResult:
         site = self._repository.site_for(site_id)  # UnknownSiteError -> 404
 
         if not await self._timed("judge", self._judge.is_on_topic(query)):
             logger.info("judge declined query", extra={"site_id": site_id})
             return ChatResult(answer=DECLINES[site.locale])
 
-        candidates = await self._timed(
-            "retrieve", self._retriever.retrieve(site_id, query, self._settings.top_k)
-        )
+        with span("retrieve", "RETRIEVER", input_value=query) as retrieve_span:
+            candidates = await self._timed(
+                "retrieve", self._retriever.retrieve(site_id, query, self._settings.top_k)
+            )
+            set_retrieved_documents(
+                retrieve_span,
+                [(c.variant.variant_id, c.variant.product_name, c.score) for c in candidates],
+            )
         if not candidates:
             logger.info("no Variants matched", extra={"site_id": site_id})
             return ChatResult(answer=NO_MATCH_ANSWERS[site.locale])

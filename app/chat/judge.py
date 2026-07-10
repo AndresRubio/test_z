@@ -2,6 +2,7 @@ import json
 import logging
 
 from app.core.errors import LLMUnavailableError
+from app.core.tracing import set_output, span
 from app.llm.prompts import JUDGE_SYSTEM, judge_user_prompt
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,12 @@ class Judge:
         self._model = model
 
     async def is_on_topic(self, query: str) -> bool:
+        with span("judge", "GUARDRAIL", input_value=query) as judge_span:
+            verdict = await self._classify(query)
+            set_output(judge_span, str(verdict))
+            return verdict
+
+    async def _classify(self, query: str) -> bool:
         try:
             raw = await self._llm.chat(
                 model=self._model,
