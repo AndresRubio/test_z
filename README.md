@@ -164,17 +164,21 @@ That is intentional: the service fails loud only when the model was genuinely
 needed for that response. `GET /health` reports Ollama reachability separately
 for infrastructure probes.
 
-**The tiny Judge can be confidently wrong.** Fail-open handles malformed or
-missing verdicts, but the guardrail's harder failure mode is a *well-formed but
-wrong* verdict: `gemma4:e2b` occasionally declines a legitimate on-topic query
-(reproducibly, for some Spanish phrasings — its own reasoning trace says
-"on-topic" while the emitted JSON says `false`). Fail-open cannot catch that,
-and it costs a real customer a correct answer. This is the accepted flip side of
-right-sizing the guardrail to a tiny model (ADR 0002): some verdict accuracy is
-traded for latency and cost. The golden set pins one such phrasing as a
-`known_limitation` (`site15-judge-false-decline`) so the gap is tracked rather
-than hidden; the fix is a stronger or few-shot-prompted Judge, or a small
-labeled calibration set — roadmap, not PoC.
+**The tiny Judge can be confidently wrong — anchored with few-shot examples.**
+Fail-open handles malformed or missing verdicts, but the guardrail's harder
+failure mode is a *well-formed but wrong* verdict: `gemma4:e2b` would declare a
+legitimate on-topic query off-topic (reproducibly, for some Spanish phrasings —
+its own reasoning trace says "on-topic" while the emitted JSON says `false`),
+which fail-open cannot catch and which costs a real customer a correct answer.
+`JUDGE_SYSTEM` now carries a few labeled examples (an indirect Spanish product
+request → on-topic; weather and pet-trivia → off-topic) that anchor the tiny
+model: the phrasing it used to mis-decline (`site15-judge-false-decline`, kept
+**unreworded** in the golden set) now passes the live eval, with every off-topic
+case still declined. This does not make a tiny model infallible — an unseen
+phrasing could still slip through, the accepted flip side of right-sizing the
+guardrail to a tiny model (ADR 0002) — so scoring guardrail accuracy on a larger
+labeled set stays on the roadmap. But the tracked gap is closed by a real fix,
+not hidden.
 
 **Hand-rolled pipeline, no framework.** The whole flow is a few hundred lines
 readable in one sitting; LangChain/LlamaIndex would hide exactly the decisions
@@ -197,10 +201,10 @@ streaming are roadmap items.
 3. **Query planner / agentic tool use**: replace the fixed chain with a planner
    that can filter by price/rating/stock, compare products, and chain retrievals.
 4. **Multi-turn conversation and streaming** (SSE) on the same contract.
-5. **Guardrail hardening**: replace the tiny Judge with a stronger or
-   few-shot-prompted model (or add a small labeled calibration set) to eliminate
-   the confidently-wrong declines the eval currently tracks as a
-   `known_limitation`, and score guardrail accuracy in CI.
+5. **Guardrail hardening**: few-shot examples in `JUDGE_SYSTEM` now fix the
+   tracked confidently-wrong decline; next is a larger labeled calibration set
+   (or a stronger Judge model) plus guardrail-accuracy scoring in CI, so unseen
+   mis-decline phrasings are caught statistically rather than one at a time.
 6. **Productionization**: containerize, CI, auth and rate limiting, hosted-LLM
    client behind the existing interface, catalog refresh pipeline instead of
    startup ingest, metrics/dashboards on top of the Phoenix traces.

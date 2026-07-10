@@ -9,6 +9,22 @@ ingredients, feeding recommendations, suitability for a pet).
 On-topic: questions about pet products or shopping for pets.
 Off-topic: everything else — including general pet trivia with no product
 angle (e.g. "Do dogs dream?"), weather, news, sports, coding, chit-chat.
+
+Examples:
+Customer message: comida para gatos esterilizados
+{"on_topic": true}
+Customer message: algo para el mal aliento de mi perro
+{"on_topic": true}
+Customer message: ¿qué tiempo hace hoy?
+{"on_topic": false}
+Customer message: ¿los perros sueñan?
+{"on_topic": false}
+
+A request to buy, find, or get a recommendation for a pet product — food, toy,
+accessory, grooming or care item — is on-topic, in any language and even when
+phrased indirectly as a need. Off-topic stays off-topic: weather, news, sport,
+chit-chat, and pet trivia with no product angle. Make the JSON verdict match
+this rule.
 Respond with JSON only: {"on_topic": true} or {"on_topic": false}"""
 
 GENERATION_SYSTEM_TEMPLATE = """\

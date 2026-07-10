@@ -82,11 +82,15 @@ doubles from `tests/helpers.py` (`FakeLLM`, factories) and `tests/conftest.py`.
 
 ## Known limitations (tracked, intentional)
 
-`evals/golden_set.json` marks two cases `known_limitation` (excluded from the
-headline count): cross-lingual retrieval (BM25 is language-blind, ADR 0001) and a
-reproducible `gemma4:e2b` Judge false-decline. **Do not mask either by reworking
-the query** — the fixes are roadmap items (see README), and hiding them was
-flagged as an integrity gap once already.
+`evals/golden_set.json` marks one case `known_limitation` (excluded from the
+headline count): cross-lingual retrieval (BM25 is language-blind, ADR 0001); the
+vector/hybrid path is the designed fix. **Do not mask it by reworking the query**
+— hiding a gap was flagged as an integrity gap once already.
+
+The `gemma4:e2b` Judge false-decline (`site15-judge-false-decline`) was a second
+known-limitation; it is now **fixed, not masked** — few-shot examples in
+`JUDGE_SYSTEM` make the tiny Judge classify the unreworded query correctly while
+still declining off-topic, so it is a scored (non-known-limitation) case again.
 
 ## Agent skills
 

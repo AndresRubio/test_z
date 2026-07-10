@@ -13,8 +13,8 @@
   see [Open items](#open-items--decisions-pending).
 - **Tests:** `93 passed, 0 warnings`; `ruff check` clean. (Re-run to confirm —
   commands below.)
-- **Live eval:** `11/11` against real Ollama, plus **2 deliberately documented
-  known-limitations** (not failures — see below).
+- **Live eval:** `12/12` against real Ollama, plus **1 deliberately documented
+  known-limitation** (not a failure — see below).
 
 ## What this is
 
@@ -110,24 +110,28 @@ Result: **263 variants kept**; 174 of the kept variants are unrated. These exact
 numbers are pinned in `tests/test_ingest.py::test_real_dataset_counts_match_the_known_traps`
 — if you change ingest, that test is the guard.
 
-## Two documented known-limitations (intentional, tracked — not bugs to "fix" quietly)
+## One documented known-limitation (intentional, tracked — not a bug to "fix" quietly)
 
-Both live in `evals/golden_set.json` with `"known_limitation": true` and are
-excluded from the headline eval count:
+`crosslingual-english-on-german-site` lives in `evals/golden_set.json` with
+`"known_limitation": true` and is excluded from the headline eval count: BM25 is
+language-blind (ADR 0001); the vector/hybrid path is the designed fix. **Do not
+mask it by rewording the query** — an earlier such attempt was flagged as an
+integrity gap in review.
 
-1. **`crosslingual-english-on-german-site`** — BM25 is language-blind (ADR 0001);
-   the vector/hybrid path is the designed fix.
-2. **`site15-judge-false-decline`** — `gemma4:e2b` reproducibly mis-declines a
-   valid Spanish query (its reasoning says on-topic, its JSON says `false`).
-   Fail-open cannot catch a *well-formed but wrong* verdict. Disclosed in the
-   README trade-offs + roadmap. **Do not mask this by rewording the query** — an
-   earlier attempt to do that was flagged as an integrity gap in review. The fix
-   is a stronger/few-shot Judge (roadmap), not hiding the case.
+### Resolved: `site15-judge-false-decline` (was known-limitation #2)
 
-> A background investigation session (`task_6ec0257c`, "Investigate Judge
-> false-decline on weight-control query") was spawned separately and runs
-> independently. If it produced findings, fold them into limitation #2's roadmap
-> item — do not let it silently rewrite the eval to make the case pass.
+`gemma4:e2b` used to mis-decline this valid Spanish query as off-topic (its
+reasoning said on-topic, its JSON said `false` — a *well-formed but wrong*
+verdict fail-open cannot catch). It is now **fixed, not masked**: a few labeled
+few-shot examples were added to `JUDGE_SYSTEM` (an indirect Spanish product
+request → on-topic; weather / pet-trivia → off-topic). The golden query is kept
+**unreworded**, so the Judge still faces the exact original phrasing; it now
+passes the live eval end-to-end (judged on-topic + BM25 returns
+56306/56321/56322), with every off-topic case still declined. Validated
+deterministically at temp 0 (the Judge runs at `temperature=0.0`); offline suite
+still `93 passed`, ruff clean. The general caveat still holds — a tiny model can
+err on an unseen phrasing — so a larger labeled calibration set + CI accuracy
+scoring stays on the README roadmap.
 
 ## How to run / verify
 
@@ -148,7 +152,7 @@ uv run uvicorn app.main:app
 
 # Live smoke + eval (need server + Ollama running)
 scripts/smoke.sh
-uv run python -m evals.run_eval --base-url http://localhost:8000   # expect 11/11
+uv run python -m evals.run_eval --base-url http://localhost:8000   # expect 12/12
 ```
 
 Optional tracing (true no-op when off): `ZA_TRACING_ENABLED=true` with an Arize
