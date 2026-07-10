@@ -135,6 +135,18 @@ proceeds to retrieval with a warning log: a false decline hurts a customer
 more than an answer that is grounded in catalog data anyway. The generation
 prompt is the second line of defense.
 
+**The tiny Judge can be confidently wrong.** Fail-open handles malformed or
+missing verdicts, but the guardrail's harder failure mode is a *well-formed but
+wrong* verdict: `gemma4:e2b` occasionally declines a legitimate on-topic query
+(reproducibly, for some Spanish phrasings — its own reasoning trace says
+"on-topic" while the emitted JSON says `false`). Fail-open cannot catch that,
+and it costs a real customer a correct answer. This is the accepted flip side of
+right-sizing the guardrail to a tiny model (ADR 0002): some verdict accuracy is
+traded for latency and cost. The golden set pins one such phrasing as a
+`known_limitation` (`site15-judge-false-decline`) so the gap is tracked rather
+than hidden; the fix is a stronger or few-shot-prompted Judge, or a small
+labeled calibration set — roadmap, not PoC.
+
 **Hand-rolled pipeline, no framework.** The whole flow is a few hundred lines
 readable in one sitting; LangChain/LlamaIndex would hide exactly the decisions
 this PoC exists to demonstrate.
@@ -156,6 +168,10 @@ streaming are roadmap items.
 3. **Query planner / agentic tool use**: replace the fixed chain with a planner
    that can filter by price/rating/stock, compare products, and chain retrievals.
 4. **Multi-turn conversation and streaming** (SSE) on the same contract.
-5. **Productionization**: containerize, CI, auth and rate limiting, hosted-LLM
+5. **Guardrail hardening**: replace the tiny Judge with a stronger or
+   few-shot-prompted model (or add a small labeled calibration set) to eliminate
+   the confidently-wrong declines the eval currently tracks as a
+   `known_limitation`, and score guardrail accuracy in CI.
+6. **Productionization**: containerize, CI, auth and rate limiting, hosted-LLM
    client behind the existing interface, catalog refresh pipeline instead of
    startup ingest, metrics/dashboards on top of the Phoenix traces.
