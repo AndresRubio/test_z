@@ -32,9 +32,11 @@ def make_variant(**overrides):
 class FakeLLM:
     """Duck-typed OllamaClient for tests: queued responses, call recording."""
 
-    def __init__(self, responses=None, error=None):
+    def __init__(self, responses=None, error=None, deltas=None, stream_error=None):
         self.responses = list(responses or [])
         self.error = error
+        self.deltas = list(deltas or [])
+        self.stream_error = stream_error
         self.calls = []
 
     async def chat(self, model, system, user, *, temperature=0.0, json_mode=False):
@@ -50,6 +52,23 @@ class FakeLLM:
         if self.error is not None:
             raise self.error
         return self.responses.pop(0)
+
+    async def chat_stream(self, model, system, user, *, temperature=0.0):
+        self.calls.append(
+            {
+                "model": model,
+                "system": system,
+                "user": user,
+                "temperature": temperature,
+                "streaming": True,
+            }
+        )
+        if self.error is not None:
+            raise self.error
+        for delta in self.deltas:
+            yield delta
+        if self.stream_error is not None:
+            raise self.stream_error
 
     async def is_reachable(self):
         return self.error is None
