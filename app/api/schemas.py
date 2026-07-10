@@ -8,6 +8,7 @@ class ChatRequest(BaseModel):
 
     site_id: int
     query: str = Field(min_length=1, max_length=2000)
+    stream: bool = False
 
     @field_validator("query")
     @classmethod

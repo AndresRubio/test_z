@@ -1,6 +1,8 @@
 import httpx
+import json
 import pytest
 
+from app.api.schemas import DoneEvent, ErrorEvent, ProductCard, RetrievedEvent, RetrievedProducts, TokenEvent
 from app.chat.service import ChatResult
 from app.core.errors import LLMUnavailableError, UnknownSiteError
 from app.main import create_app
@@ -128,3 +130,106 @@ async def test_request_id_header_present():
     async with client_for(StubChatService()) as client:
         response = await client.get("/health")
     assert response.headers.get("X-Request-ID")
+
+
+class StubStreamingChatService:
+    """Streaming stand-in: replays scripted events, or raises pre-stream."""
+
+    def __init__(self, events=None, error=None):
+        self.events = list(events or [])
+        self.error = error
+
+    async def handle_stream(self, site_id, query):
+        if self.error is not None:
+            raise self.error
+        for event in self.events:
+            yield event
+
+
+def _card():
+    return ProductCard.from_scored(
+        ScoredVariant(variant=make_variant(product_id=42), score=1.5)
+    )
+
+
+def parse_frames(text):
+    frames = []
+    for block in text.strip().split("\n\n"):
+        fields = dict(line.split(": ", 1) for line in block.split("\n"))
+        frames.append((fields["event"], json.loads(fields["data"])))
+    return frames
+
+
+async def test_chat_stream_true_returns_event_stream_in_order():
+    events = [
+        RetrievedEvent(retrieved_products=RetrievedProducts(products=[_card()], count=1)),
+        TokenEvent(delta="Hel"),
+        TokenEvent(delta="lo"),
+        DoneEvent(answer="Hello"),
+    ]
+    async with client_for(StubStreamingChatService(events=events)) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog toy", "stream": True}
+        )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    frames = parse_frames(response.text)
+    assert [name for name, _ in frames] == ["retrieved", "token", "token", "done"]
+    assert frames[0][1]["retrieved_products"]["products"][0]["product_id"] == 42
+    assert frames[-1][1] == {"answer": "Hello"}
+
+
+async def test_chat_stream_decline_is_single_done_frame():
+    service = StubStreamingChatService(events=[DoneEvent(answer="I can only help with products.")])
+    async with client_for(service) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "weather", "stream": True}
+        )
+    assert parse_frames(response.text) == [
+        ("done", {"answer": "I can only help with products."})
+    ]
+
+
+async def test_chat_stream_unknown_site_is_a_real_404():
+    service = StubStreamingChatService(error=UnknownSiteError(7, [1, 3, 15]))
+    async with client_for(service) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 7, "query": "dog food", "stream": True}
+        )
+    assert response.status_code == 404
+
+
+async def test_chat_stream_judge_unavailable_is_a_real_503():
+    service = StubStreamingChatService(error=LLMUnavailableError("down"))
+    async with client_for(service) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog food", "stream": True}
+        )
+    assert response.status_code == 503
+
+
+async def test_chat_stream_mid_stream_failure_ends_with_error_frame():
+    events = [
+        RetrievedEvent(retrieved_products=RetrievedProducts(products=[_card()], count=1)),
+        TokenEvent(delta="par"),
+        ErrorEvent(detail="the model became unavailable"),
+    ]
+    async with client_for(StubStreamingChatService(events=events)) as client:
+        response = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog food", "stream": True}
+        )
+    assert response.status_code == 200
+    assert [name for name, _ in parse_frames(response.text)] == ["retrieved", "token", "error"]
+
+
+async def test_chat_stream_false_and_omitted_are_byte_identical():
+    scored = ScoredVariant(variant=make_variant(product_id=42), score=1.5)
+    result = ChatResult(answer="try this", products=[scored])
+    async with client_for(StubChatService(result=result)) as client:
+        omitted = await client.post("/chat", json={"site_id": 1, "query": "dog toy"})
+        explicit = await client.post(
+            "/chat", json={"site_id": 1, "query": "dog toy", "stream": False}
+        )
+    assert omitted.status_code == explicit.status_code == 200
+    assert omitted.headers["content-type"] == explicit.headers["content-type"] == "application/json"
+    assert omitted.content == explicit.content
