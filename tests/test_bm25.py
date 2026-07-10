@@ -85,6 +85,14 @@ async def test_food_form_intent_boosts_matching_form():
     assert "DRY" in forms  # boosted, not filtered out
 
 
+async def test_strong_semantic_match_survives_opposite_form_query(real_retriever):
+    # "wet food for a cat with kidney problems" — the best clinical match is
+    # Hill's k/d, which is a DRY diet. The soft form penalty must not bury it:
+    # form breaks near-ties, it never overrides a strong relevance signal.
+    results = await real_retriever.retrieve(3, "wet food for a cat with kidney problems", k=5)
+    assert 2567570 in [r.variant.product_id for r in results]
+
+
 async def test_name_match_outranks_description_match():
     in_name = make_variant(
         variant_id="a.1", product_name="SuperBall Deluxe", description="A toy for dogs."

@@ -1,3 +1,4 @@
+import logging
 import re
 
 from rank_bm25 import BM25Okapi
@@ -8,10 +9,14 @@ from app.catalog.repository import CatalogRepository
 from app.core.errors import UnknownSiteError
 from app.retrieval.base import ScoredVariant
 
+logger = logging.getLogger(__name__)
+
 _TOKEN_RE = re.compile(r"\w+")
 _NAME_BOOST = 3  # name/brand tokens repeated so title hits outrank description hits
 _FORM_MATCH = 1.5  # soft: lift the requested food form...
-_FORM_MISS = 0.6  # ...and damp the opposite form, without excluding it
+_FORM_MISS = 0.85  # ...and gently damp the opposite form. Deliberately mild: a
+# strong semantic match (e.g. the only kidney-care diet, which is dry) must still
+# win a "wet food" query on merit — form breaks near-ties, it does not exclude.
 
 
 def tokenize(text: str) -> list[str]:
@@ -55,11 +60,22 @@ class BM25Retriever:
         scores = self._indexes[site_id].get_scores(tokens)
         pet = facets.detect_pet_type(query)  # authoritative -> hard filter
         form = facets.detect_food_form(query)  # text-derived -> soft re-rank
-        scored = [
-            (v, self._adjust(float(s), v, form))
-            for v, s in zip(self._variants[site_id], scores)
-            if s > 0.0 and (pet is None or v.pet_type == pet)
-        ]
+        matched = [(v, float(s)) for v, s in zip(self._variants[site_id], scores) if s > 0.0]
+        kept = [(v, s) for v, s in matched if pet is None or v.pet_type == pet]
+        if pet is not None or form is not None:
+            # Supervision signal: which facets fired and what the hard pet
+            # filter removed, so the retriever's shaping is auditable per query.
+            logger.info(
+                "retrieval facets applied",
+                extra={
+                    "site_id": site_id,
+                    "pet_filter": pet,
+                    "food_form_boost": form,
+                    "lexical_matches": len(matched),
+                    "after_pet_filter": len(kept),
+                },
+            )
+        scored = [(v, self._adjust(s, v, form)) for v, s in kept]
         scored.sort(key=lambda pair: pair[1], reverse=True)
         return [ScoredVariant(variant=v, score=s) for v, s in scored[:k]]
 

@@ -48,7 +48,13 @@ which orchestrates three stages, each isolated behind its own module:
    with a warning. Off-topic → static decline, no further LLM calls.
 2. **Retriever** (`app/retrieval/`) — `base.py` defines the `Retriever` Protocol,
    the **deliberate seam** for future vector/hybrid/reranker backends (ADR 0001).
-   `bm25.py` is the PoC binding: per-Site BM25, name/brand ×3 boost, `score > 0`.
+   `bm25.py` is the PoC binding: per-Site BM25, name/brand ×3 boost, `score > 0`,
+   then two structured facets from `app/catalog/facets.py` correct BM25's
+   bag-of-words blindness — `pet_type` is authoritative so it **hard-filters**
+   (a dog query never returns a cat), while `food_form` (DRY/WET, derived at
+   ingest from multilingual name cues) is text-derived so it only **soft-boosts**
+   the requested form (×1.5 match / ×0.85 miss) — a strong semantic match still
+   wins on merit. Detected facets are logged per query for supervision.
 3. **Generator** (`app/llm/`, model `gemma4:e4b`) — answers **always in the Site
    locale**, regardless of query language (intended; see README).
 
@@ -72,7 +78,10 @@ Cross-cutting design facts that span files and must not be regressed:
   pinned by `test_real_dataset_counts_match_the_known_traps` — that test is the
   guard if you touch ingest. Note `strip_html` strips tags **then** unescapes,
   deliberately **preserving** decoded operators like `<25kg`; do not re-add
-  bracket stripping.
+  bracket stripping. Ingest also **derives the `food_form` facet** (DRY/WET/None,
+  via `app/catalog/facets.py`) from name+summary only — never the description,
+  which cross-references the other form ("a complement to dry food") and would
+  mislabel it.
 - **Repository (`app/catalog/repository.py`)** hard-partitions Variants by Site;
   Site catalogs are disjoint.
 - **Tracing (`app/core/tracing.py`)** is a true no-op unless `ZA_TRACING_ENABLED`;
