@@ -53,17 +53,27 @@ async def test_quarantined_variants_never_retrievable(real_retriever):
 
 
 async def test_name_match_outranks_description_match():
-    in_name = make_variant(variant_id="a.1", product_name="SuperBall Deluxe",
-                           description="A toy for dogs.")
-    in_desc = make_variant(variant_id="b.1", product_name="Chew Bone",
-                           description="Works a bit like a superball for dogs.")
+    in_name = make_variant(
+        variant_id="a.1", product_name="SuperBall Deluxe", description="A toy for dogs."
+    )
+    in_desc = make_variant(
+        variant_id="b.1",
+        product_name="Chew Bone",
+        description="Works a bit like a superball for dogs.",
+    )
     # Filler Variants (no "superball") enlarge the corpus so the shared term's
     # BM25 IDF stays positive — on a 2-doc corpus a term in both docs has
     # negative IDF and both get dropped by the score > 0 filter.
     fillers = [
-        make_variant(variant_id="c.1", product_name="Cat Litter", description="Clumping clay litter."),
-        make_variant(variant_id="d.1", product_name="Dog Leash", description="Durable nylon leash."),
-        make_variant(variant_id="e.1", product_name="Fish Flakes", description="Aquarium flake food."),
+        make_variant(
+            variant_id="c.1", product_name="Cat Litter", description="Clumping clay litter."
+        ),
+        make_variant(
+            variant_id="d.1", product_name="Dog Leash", description="Durable nylon leash."
+        ),
+        make_variant(
+            variant_id="e.1", product_name="Fish Flakes", description="Aquarium flake food."
+        ),
     ]
     retriever = BM25Retriever(CatalogRepository([in_name, in_desc, *fillers]))
     results = await retriever.retrieve(1, "superball", k=2)

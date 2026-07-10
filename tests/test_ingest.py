@@ -9,12 +9,28 @@ from tests.conftest import DATASET_PATH
 
 def _record(**overrides):
     base = dict(
-        product_id=1, article_id=10, variant_id="1.0", site_id=1, locale="de-DE",
-        pet_type="DOGS", brands="TestBrand", product_name="Test Product",
-        variant_name="1kg", summary="plain", description="plain", ingredients="",
-        feeding_recommendations="", price=9.99, currency="EUR", discount_label=None,
-        rating_average=4.5, rating_count=10, stock_units=5, margin_pct=10.0,
-        monthly_sales_units=1, revenue_last_30d=1.0,
+        product_id=1,
+        article_id=10,
+        variant_id="1.0",
+        site_id=1,
+        locale="de-DE",
+        pet_type="DOGS",
+        brands="TestBrand",
+        product_name="Test Product",
+        variant_name="1kg",
+        summary="plain",
+        description="plain",
+        ingredients="",
+        feeding_recommendations="",
+        price=9.99,
+        currency="EUR",
+        discount_label=None,
+        rating_average=4.5,
+        rating_count=10,
+        stock_units=5,
+        margin_pct=10.0,
+        monthly_sales_units=1,
+        revenue_last_30d=1.0,
     )
     base.update(overrides)
     return base
@@ -110,7 +126,9 @@ def test_real_dataset_counts_match_the_known_traps():
     assert report.total_records == 300
     assert report.exact_duplicates_dropped == 12
     assert report.pet_type_conflicts == 1
-    assert report.ratings_nulled == 198   # raw-feed rows with rating_count==0 (issue 02); post-dedup that subset is 192
+    assert (
+        report.ratings_nulled == 198
+    )  # raw-feed rows with rating_count==0 (issue 02); post-dedup that subset is 192
     assert report.price_quarantined == 24
     assert report.variants_kept == 263 == len(variants)
     assert report.out_of_stock == 8
@@ -120,4 +138,6 @@ def test_real_dataset_counts_match_the_known_traps():
         for field in (v.summary, v.description, v.ingredients, v.feeding_recommendations):
             assert not tag_re.search(field), f"HTML tag leaked into {v.variant_id}: {field!r}"
     assert max(v.price for v in variants) < 500.0
-    assert sum(1 for v in variants if v.rating_average is None) == 174  # kept variants unrated: 192 post-dedup minus 18 that were also quarantined
+    assert (
+        sum(1 for v in variants if v.rating_average is None) == 174
+    )  # kept variants unrated: 192 post-dedup minus 18 that were also quarantined

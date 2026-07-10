@@ -29,8 +29,7 @@ def test_localized_answer_maps_cover_all_sites():
 
 def test_context_contains_key_fields():
     context = render_product_context(
-        [_scored(product_name="Wonder Ball", price=12.5, currency="GBP",
-                 discount_label="-20%")],
+        [_scored(product_name="Wonder Ball", price=12.5, currency="GBP", discount_label="-20%")],
         max_chars=600,
     )
     assert "Wonder Ball" in context
@@ -45,17 +44,13 @@ def test_out_of_stock_is_flagged():
 
 
 def test_unrated_variant_shows_no_ratings_not_zero():
-    context = render_product_context(
-        [_scored(rating_average=None, rating_count=0)], max_chars=600
-    )
+    context = render_product_context([_scored(rating_average=None, rating_count=0)], max_chars=600)
     assert "No ratings yet" in context
     assert "0.0" not in context
 
 
 def test_details_truncated_to_budget():
-    context = render_product_context(
-        [_scored(summary="", description="x" * 1000)], max_chars=100
-    )
+    context = render_product_context([_scored(summary="", description="x" * 1000)], max_chars=100)
     details_line = next(line for line in context.splitlines() if line.startswith("Details:"))
     assert len(details_line) < 120
     assert details_line.endswith("…")

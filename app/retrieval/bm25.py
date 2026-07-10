@@ -17,10 +17,18 @@ def tokenize(text: str) -> list[str]:
 
 def _document_tokens(variant: Variant) -> list[str]:
     boosted = tokenize(f"{variant.product_name} {variant.brand}") * _NAME_BOOST
-    rest = tokenize(" ".join([
-        variant.variant_name, variant.pet_type, variant.summary,
-        variant.description, variant.ingredients, variant.feeding_recommendations,
-    ]))
+    rest = tokenize(
+        " ".join(
+            [
+                variant.variant_name,
+                variant.pet_type,
+                variant.summary,
+                variant.description,
+                variant.ingredients,
+                variant.feeding_recommendations,
+            ]
+        )
+    )
     return boosted + rest
 
 

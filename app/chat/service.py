@@ -29,8 +29,7 @@ class ChatService:
     Declines and no-match answers are static templates in the Site locale —
     off-topic traffic never reaches retrieval or generation."""
 
-    def __init__(self, judge, retriever, llm, repository: CatalogRepository,
-                 settings: Settings):
+    def __init__(self, judge, retriever, llm, repository: CatalogRepository, settings: Settings):
         self._judge = judge
         self._retriever = retriever
         self._llm = llm

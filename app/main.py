@@ -25,9 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app_settings.catalog_path, app_settings.max_plausible_price
         )
         repository = CatalogRepository(variants)
-        llm_client = OllamaClient(
-            app_settings.ollama_base_url, app_settings.llm_timeout_seconds
-        )
+        llm_client = OllamaClient(app_settings.ollama_base_url, app_settings.llm_timeout_seconds)
         app.state.settings = app_settings
         app.state.repository = repository
         app.state.llm_client = llm_client
@@ -55,7 +53,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def llm_unavailable_handler(request: Request, exc: LLMUnavailableError):
         return JSONResponse(
             status_code=503,
-            content={"detail": "The language model backend is unavailable. Please try again later."},
+            content={
+                "detail": "The language model backend is unavailable. Please try again later."
+            },
         )
 
     return app

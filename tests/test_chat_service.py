@@ -34,11 +34,13 @@ class FakeRetriever:
 
 
 def _repository():
-    return CatalogRepository([
-        make_variant(site_id=1, locale="de-DE", currency="EUR"),
-        make_variant(variant_id="2.0", site_id=3, locale="en-GB", currency="GBP"),
-        make_variant(variant_id="3.0", site_id=15, locale="es-ES", currency="EUR"),
-    ])
+    return CatalogRepository(
+        [
+            make_variant(site_id=1, locale="de-DE", currency="EUR"),
+            make_variant(variant_id="2.0", site_id=3, locale="en-GB", currency="GBP"),
+            make_variant(variant_id="3.0", site_id=15, locale="es-ES", currency="EUR"),
+        ]
+    )
 
 
 def _service(verdict=True, results=None, llm=None):
@@ -46,8 +48,11 @@ def _service(verdict=True, results=None, llm=None):
     retriever = FakeRetriever(results if results is not None else [])
     llm = llm or FakeLLM(responses=["generated answer"])
     service = ChatService(
-        judge=judge, retriever=retriever, llm=llm,
-        repository=_repository(), settings=SETTINGS,
+        judge=judge,
+        retriever=retriever,
+        llm=llm,
+        repository=_repository(),
+        settings=SETTINGS,
     )
     return service, judge, retriever, llm
 

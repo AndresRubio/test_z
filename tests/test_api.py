@@ -37,8 +37,13 @@ def client_for(service):
 
 async def test_chat_success_contract():
     scored = ScoredVariant(
-        variant=make_variant(product_id=42, in_stock=False, rating_average=None,
-                             rating_count=0, discount_label="-20%"),
+        variant=make_variant(
+            product_id=42,
+            in_stock=False,
+            rating_average=None,
+            rating_count=0,
+            discount_label="-20%",
+        ),
         score=1.5,
     )
     service = StubChatService(result=ChatResult(answer="try this", products=[scored]))
@@ -91,14 +96,17 @@ async def test_llm_unavailable_maps_to_503():
     assert response.status_code == 503
 
 
-@pytest.mark.parametrize("payload", [
-    {"site_id": 1},                                  # missing query
-    {"query": "hi"},                                 # missing site_id
-    {"site_id": 1, "query": "   "},                  # blank query
-    {"site_id": 1, "query": "x" * 2001},             # too long
-    {"site_id": "one", "query": "hi"},               # wrong type
-    {"site_id": 1, "query": "hi", "extra": True},    # extra field
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"site_id": 1},  # missing query
+        {"query": "hi"},  # missing site_id
+        {"site_id": 1, "query": "   "},  # blank query
+        {"site_id": 1, "query": "x" * 2001},  # too long
+        {"site_id": "one", "query": "hi"},  # wrong type
+        {"site_id": 1, "query": "hi", "extra": True},  # extra field
+    ],
+)
 async def test_validation_422(payload):
     async with client_for(StubChatService()) as client:
         response = await client.post("/chat", json=payload)

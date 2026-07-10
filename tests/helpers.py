@@ -5,11 +5,25 @@ def make_variant(**overrides):
     from app.catalog.models import Variant
 
     base = dict(
-        product_id=1, article_id=10, variant_id="1.0", site_id=1, locale="de-DE",
-        pet_type="DOGS", brand="TestBrand", product_name="Test Product",
-        variant_name="1kg", summary="A summary", description="A description",
-        ingredients="", feeding_recommendations="", price=9.99, currency="EUR",
-        discount_label=None, rating_average=4.5, rating_count=10, in_stock=True,
+        product_id=1,
+        article_id=10,
+        variant_id="1.0",
+        site_id=1,
+        locale="de-DE",
+        pet_type="DOGS",
+        brand="TestBrand",
+        product_name="Test Product",
+        variant_name="1kg",
+        summary="A summary",
+        description="A description",
+        ingredients="",
+        feeding_recommendations="",
+        price=9.99,
+        currency="EUR",
+        discount_label=None,
+        rating_average=4.5,
+        rating_count=10,
+        in_stock=True,
     )
     base.update(overrides)
     return Variant(**base)
@@ -24,10 +38,15 @@ class FakeLLM:
         self.calls = []
 
     async def chat(self, model, system, user, *, temperature=0.0, json_mode=False):
-        self.calls.append({
-            "model": model, "system": system, "user": user,
-            "temperature": temperature, "json_mode": json_mode,
-        })
+        self.calls.append(
+            {
+                "model": model,
+                "system": system,
+                "user": user,
+                "temperature": temperature,
+                "json_mode": json_mode,
+            }
+        )
         if self.error is not None:
             raise self.error
         return self.responses.pop(0)

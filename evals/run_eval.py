@@ -6,6 +6,7 @@ Usage:
 Checks are structural (retrieval hit-rate and empty-products behavior).
 Answer-quality judging (LLM-as-judge) is future work — see the README roadmap.
 """
+
 import argparse
 import json
 import sys
@@ -19,9 +20,7 @@ GOLDEN_PATH = Path(__file__).parent / "golden_set.json"
 def evaluate_case(case: dict, response_body: dict) -> tuple[bool, str]:
     expect = case["expect"]
     kind = expect["kind"]
-    product_ids = {
-        p["product_id"] for p in response_body["retrieved_products"]["products"]
-    }
+    product_ids = {p["product_id"] for p in response_body["retrieved_products"]["products"]}
     if kind == "products":
         wanted = set(expect["any_of_product_ids"])
         ok = bool(product_ids & wanted)
@@ -35,8 +34,9 @@ def evaluate_case(case: dict, response_body: dict) -> tuple[bool, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://localhost:8000")
-    parser.add_argument("--strict", action="store_true",
-                        help="exit non-zero if any non-known-limitation case fails")
+    parser.add_argument(
+        "--strict", action="store_true", help="exit non-zero if any non-known-limitation case fails"
+    )
     args = parser.parse_args()
 
     cases = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
@@ -60,8 +60,10 @@ def main() -> int:
                     failures += 1
 
     scored = len(cases) - sum(1 for c in cases if c.get("known_limitation"))
-    print(f"\nHeadline: {scored - failures}/{scored} passed "
-          f"({known_failures} known-limitation failures excluded)")
+    print(
+        f"\nHeadline: {scored - failures}/{scored} passed "
+        f"({known_failures} known-limitation failures excluded)"
+    )
     if args.strict and failures:
         return 1
     return 0

@@ -52,7 +52,9 @@ class OllamaClient:
                 data = response.json()
                 content = data["message"]["content"]
             except (KeyError, TypeError, ValueError) as exc:
-                raise LLMUnavailableError(f"Ollama chat returned an unexpected body: {exc}") from exc
+                raise LLMUnavailableError(
+                    f"Ollama chat returned an unexpected body: {exc}"
+                ) from exc
             set_llm_details(
                 llm_span,
                 model=model,

@@ -68,7 +68,8 @@ class FakeRetriever:
 async def test_chat_flow_emits_openinference_spans():
     scored = [ScoredVariant(variant=make_variant(), score=2.5)]
     service = ChatService(
-        judge=FakeJudge(), retriever=FakeRetriever(scored),
+        judge=FakeJudge(),
+        retriever=FakeRetriever(scored),
         llm=FakeLLM(responses=["an answer"]),
         repository=CatalogRepository([make_variant()]),
         settings=Settings(_env_file=None),
@@ -99,9 +100,14 @@ async def test_judge_emits_guardrail_span():
 
 async def test_ollama_chat_emits_llm_span_with_token_counts():
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={
-            "message": {"content": "hi"}, "prompt_eval_count": 12, "eval_count": 5,
-        })
+        return httpx.Response(
+            200,
+            json={
+                "message": {"content": "hi"},
+                "prompt_eval_count": 12,
+                "eval_count": 5,
+            },
+        )
 
     http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://t")
     client = OllamaClient("http://t", 5.0, client=http)

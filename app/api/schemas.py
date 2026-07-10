@@ -40,11 +40,19 @@ class ProductCard(BaseModel):
     def from_scored(cls, scored: ScoredVariant) -> "ProductCard":
         v = scored.variant
         return cls(
-            product_id=v.product_id, article_id=v.article_id, variant_id=v.variant_id,
-            product_name=v.product_name, variant_name=v.variant_name, brand=v.brand,
-            pet_type=v.pet_type, price=v.price, currency=v.currency,
-            discount_label=v.discount_label, rating_average=v.rating_average,
-            rating_count=v.rating_count, in_stock=v.in_stock,
+            product_id=v.product_id,
+            article_id=v.article_id,
+            variant_id=v.variant_id,
+            product_name=v.product_name,
+            variant_name=v.variant_name,
+            brand=v.brand,
+            pet_type=v.pet_type,
+            price=v.price,
+            currency=v.currency,
+            discount_label=v.discount_label,
+            rating_average=v.rating_average,
+            rating_count=v.rating_count,
+            in_stock=v.in_stock,
         )
 
 
