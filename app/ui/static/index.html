@@ -469,6 +469,82 @@
     addBubble("assistant", wrap);
   }
 
+  async function readSse(response, handlers) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        let event = "";
+        let data = "";
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("event: ")) event = line.slice(7);
+          else if (line.startsWith("data: ")) data += line.slice(6);
+        }
+        if (event && data && handlers[event]) handlers[event](JSON.parse(data));
+      }
+    }
+  }
+
+  function renderStream(siteId) {
+    // Builds the assistant bubble incrementally: meta + cards on `retrieved`,
+    // answer text on `token`, raw-JSON details on `done`.
+    const wrap = document.createElement("div");
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = "Site " + siteId + " · retrieving…";
+    wrap.append(meta);
+    // answerNode() returns a DocumentFragment: once appended its children are
+    // flattened into `wrap` and the fragment itself is left empty, so it can't
+    // be used as a live update target. Wrap it in a real element instead.
+    const answer = document.createElement("div");
+    answer.append(answerNode(""));
+    wrap.append(answer);
+    addBubble("assistant", wrap);
+
+    let retrieved = { products: [], count: 0 };
+    let text = "";
+    return {
+      retrieved(payload) {
+        retrieved = payload.retrieved_products;
+        meta.textContent = "Site " + siteId + " · " + retrieved.count + " product(s) retrieved";
+        if (retrieved.count > 0) {
+          const cards = document.createElement("div");
+          cards.className = "cards";
+          for (const card of retrieved.products) cards.append(renderCard(card));
+          wrap.append(cards);
+        }
+      },
+      token(payload) {
+        text += payload.delta;
+        answer.textContent = text;
+      },
+      done(payload) {
+        meta.textContent = "Site " + siteId + " · " + retrieved.count + " product(s) retrieved";
+        answer.textContent = payload.answer;
+        const raw = document.createElement("details");
+        raw.className = "raw";
+        const summary = document.createElement("summary");
+        summary.textContent = "raw JSON";
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(
+          { answer: payload.answer, retrieved_products: retrieved }, null, 2
+        );
+        raw.append(summary, pre);
+        wrap.append(raw);
+      },
+      error(payload) {
+        addBubble("warning", textNode(payload.detail));
+      },
+    };
+  }
+
   async function loadHealth() {
     banner.hidden = true;
     statusPill.textContent = "checking…";
@@ -510,7 +586,7 @@
       response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: siteId, query }),
+        body: JSON.stringify({ site_id: siteId, query, stream: true }),
       });
     } catch {
       // Genuine network failure: the request never got a response.
@@ -522,8 +598,14 @@
 
     typing.remove();
     if (response.ok) {
+      const contentType = response.headers.get("content-type") || "";
       try {
-        renderAnswer(siteId, await response.json());
+        if (contentType.startsWith("text/event-stream")) {
+          await readSse(response, renderStream(siteId));
+        } else {
+          // Fallback: server answered with plain JSON (e.g. older server).
+          renderAnswer(siteId, await response.json());
+        }
         queryInput.value = ""; // clear only once the reply is shown
       } catch {
         // The server responded, but the body was not the shape we expected.

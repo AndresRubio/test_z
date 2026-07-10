@@ -36,3 +36,10 @@ async def test_index_page_wires_up_the_api():
     assert 'id="composer"' in page
     assert "/chat" in page
     assert "/health" in page
+
+
+async def test_console_requests_streaming_and_parses_sse():
+    async with client() as c:
+        response = await c.get("/")
+    assert "stream: true" in response.text  # JS object literal in the fetch body
+    assert "text/event-stream" in response.text
