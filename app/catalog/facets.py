@@ -15,6 +15,16 @@ Vocabulary is multilingual (de/en/es) because each Site speaks one language and
 queries arrive in any of them.
 """
 
+# TO_IMPROVE — query understanding stops at these two facets. Everything else a
+# shopper says (life-stage puppy/kitten/senior, breed/size band, weight,
+# budget/price ceiling, brand as a filter, dietary & health needs like
+# grain-free or sensitive-stomach, pack size) is left to raw BM25 term overlap.
+# Options: extend these high-precision keyword lists (cheap, more maintenance),
+# or add an LLM slot-extraction step that fills a typed intent object (richer,
+# one extra model call). Only slots backed by an authoritative clean field
+# should hard-filter; derived ones should soft-boost, as food_form does.
+# See docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Entity identification.
+
 DOGS = "DOGS"
 CATS = "CATS"
 DRY = "DRY"

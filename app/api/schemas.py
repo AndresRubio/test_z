@@ -10,6 +10,17 @@ class ChatRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
     stream: bool = False
 
+    # TO_IMPROVE — this contract is single-turn by construction: extra="forbid"
+    # and no conversation_id / history mean a follow-up like "what about the wet
+    # one?" arrives with no referent — no coreference, and the Generator never
+    # sees the prior turn's Product Cards. Multi-turn options: (a) stateless —
+    # the client resends prior turns in a `history` field, server stays
+    # memoryless; (b) stateful — a `conversation_id` keys a short server-side
+    # transcript. Either way a query-rewriting step must make the turn
+    # self-contained before the Judge and Retriever, which expect one standalone
+    # query. See
+    # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Multi-turn & follow-ups.
+
     @field_validator("query")
     @classmethod
     def _not_blank(cls, value: str) -> str:

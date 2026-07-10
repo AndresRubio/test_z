@@ -91,6 +91,17 @@ class ChatService:
             logger.info("no Variants matched", extra={"site_id": site_id})
             return ChatResult(answer=NO_MATCH_ANSWERS[site.locale])
 
+        # TO_IMPROVE — the safetynet is strong structurally (Internal Fields
+        # cannot leak, Sites are hard-partitioned) but thin behaviourally: once
+        # generation runs its answer is returned verbatim. Nothing verifies it
+        # stayed grounded in these cards, invented no product/price, kept the
+        # Site locale, or leaked no system prompt; grounding is prompt-only. The
+        # input side is open too — the raw query is interpolated straight into
+        # the prompt (no injection defence), with no moderation and no pet-health
+        # disclaimer. Options: a post-generation verifier (grounding/leak/locale
+        # check, applied here and before the streaming `done`) and/or query
+        # sanitisation before the prompt. See
+        # docs/specs/conversation/2026-07-11-conversational-improvements-design.md § Safetynet.
         context = render_product_context(candidates, self._settings.context_chars_per_product)
         answer = await self._timed(
             "generate",
