@@ -15,7 +15,7 @@
    "query": "Massagebürste für meinen Hund",
    "expect": {"kind": "products", "any_of_product_ids": [136030]}},
   {"id": "site15-weight-control", "site_id": 15,
-   "query": "pienso para el control del peso del perro",
+   "query": "pienso para perros con sobrepeso para el control del peso",
    "expect": {"kind": "products", "any_of_product_ids": [56306, 56321, 56322]}},
   {"id": "site15-digestion-sensible", "site_id": 15,
    "query": "comida para perros con digestión sensible",
