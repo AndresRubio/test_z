@@ -211,17 +211,12 @@ shop with one content language, and the answer should match the shop the
 customer is standing in. The trade-off (a tourist asking in English on the
 German shop gets German) is accepted and documented here deliberately.
 
-**Data quality: the catalog is booby-trapped; ingest defuses it and reports.**
-
-| Finding (this dataset) | Policy |
-|---|---|
-| 12 exact duplicate rows | dropped |
-| 1 Variant listed as both DOGS and CATS (site 15, `2422691.0`) | first record kept, conflict logged |
-| 198 unrated Variants with `rating_average: 0.0` | rating nulled — an unrated product must not look like a terrible one |
-| 24 Variants at implausible €950–1000 for food/litter multi-packs | quarantined (threshold `ZA_MAX_PLAUSIBLE_PRICE`); a production version would use per-category outlier statistics instead of one flat cap |
-| 8 Variants with zero stock | kept retrievable, exposed as `in_stock: false` so the answer can steer to alternatives |
-| HTML markup in all text fields | stripped before indexing and prompting |
-| Internal Fields (`margin_pct`, `monthly_sales_units`, `revenue_last_30d`, raw `stock_units`) | never parsed into the domain model — excluded from responses by construction |
+**Data quality: the catalog is booby-trapped; ingest defuses every trap with
+an explicit, tested policy.** Twelve duplicate rows, a two-species Variant, a
+€950–1000 price cluster, zero-rating-as-unrated, zero stock, HTML in every
+description, Internal Fields adjacent to public ones — each finding, the
+policy chosen, and the exact counts are walked through in
+[Data & Ingestion](#data--ingestion) above.
 
 **Two-model split (ADR 0002).** The Judge runs on `gemma4:e2b`, generation on
 `gemma4:e4b`. One model doing both in a single prompt is cheaper, but conflates
