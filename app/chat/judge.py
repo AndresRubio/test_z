@@ -31,7 +31,7 @@ class Judge:
             return True
         try:
             verdict = json.loads(raw).get("on_topic")
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError, TypeError):
             verdict = None
         if isinstance(verdict, bool):
             return verdict

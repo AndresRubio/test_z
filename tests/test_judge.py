@@ -41,6 +41,13 @@ async def test_non_object_json_fails_open():
     assert await Judge(llm, "m").is_on_topic("anything") is True
 
 
+async def test_none_content_fails_open():
+    # Ollama can return {"message": {"content": null}} -> chat() yields None;
+    # json.loads(None) raises TypeError, which must still fail open.
+    llm = FakeLLM(responses=[None])
+    assert await Judge(llm, "m").is_on_topic("anything") is True
+
+
 async def test_llm_error_fails_open_with_warning(caplog):
     llm = FakeLLM(error=LLMUnavailableError("down"))
     with caplog.at_level(logging.WARNING):
