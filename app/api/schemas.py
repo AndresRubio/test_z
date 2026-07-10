@@ -66,6 +66,30 @@ class ChatResponse(BaseModel):
     retrieved_products: RetrievedProducts
 
 
+class RetrievedEvent(BaseModel):
+    """SSE `retrieved`: sent once, the moment retrieval completes."""
+
+    retrieved_products: RetrievedProducts
+
+
+class TokenEvent(BaseModel):
+    """SSE `token`: one incremental answer delta."""
+
+    delta: str
+
+
+class DoneEvent(BaseModel):
+    """SSE `done`: terminal on success; carries the full accumulated answer."""
+
+    answer: str
+
+
+class ErrorEvent(BaseModel):
+    """SSE `error`: terminal on mid-stream failure (HTTP 200 is already sent)."""
+
+    detail: str
+
+
 class HealthResponse(BaseModel):
     status: str
     catalog_loaded: bool
