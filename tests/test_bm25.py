@@ -52,6 +52,39 @@ async def test_quarantined_variants_never_retrievable(real_retriever):
         assert all(r.variant.price < 500.0 for r in results)
 
 
+async def test_pet_type_query_hard_filters_other_pet(real_retriever):
+    # "Nassfutter für Hunde" = wet food for DOGS; today the top hits are CATS
+    # (Whiskas, Felix) because BM25 only tokenizes pet_type. It is authoritative
+    # data, so a dog query must never surface a cat Variant.
+    results = await real_retriever.retrieve(1, "Nassfutter für Hunde", k=5)
+    assert results, "expected some dog matches"
+    assert all(r.variant.pet_type == "DOGS" for r in results)
+
+
+async def test_food_form_intent_boosts_matching_form():
+    # Two cat foods with identical searchable text (so BM25 scores them equally)
+    # differing only in food_form. A "wet" query must float the WET one up; the
+    # DRY one is boosted, not excluded, so it still appears.
+    wet = make_variant(
+        variant_id="w.1", product_name="Meadow Meal", summary="complete food for cats",
+        pet_type="CATS", food_form="WET",
+    )
+    dry = make_variant(
+        variant_id="d.1", product_name="Meadow Meal", summary="complete food for cats",
+        pet_type="CATS", food_form="DRY",
+    )
+    fillers = [
+        make_variant(variant_id="f1.1", product_name="Dog Leash", summary="nylon", pet_type="CATS"),
+        make_variant(variant_id="f2.1", product_name="Cat Bed", summary="plush", pet_type="CATS"),
+        make_variant(variant_id="f3.1", product_name="Litter Box", summary="clay", pet_type="CATS"),
+    ]
+    retriever = BM25Retriever(CatalogRepository([dry, wet, *fillers]))
+    results = await retriever.retrieve(1, "wet food for cats", k=5)
+    forms = [r.variant.food_form for r in results]
+    assert forms[0] == "WET"
+    assert "DRY" in forms  # boosted, not filtered out
+
+
 async def test_name_match_outranks_description_match():
     in_name = make_variant(
         variant_id="a.1", product_name="SuperBall Deluxe", description="A toy for dogs."

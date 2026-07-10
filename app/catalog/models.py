@@ -39,3 +39,4 @@ class Variant(BaseModel):
     rating_average: float | None
     rating_count: int
     in_stock: bool
+    food_form: str | None = None  # DRY / WET, derived at ingest; None when unclear

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.catalog import facets
 from app.catalog.models import Variant
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,9 @@ def load_catalog(
     for i, rec in deduped:
         try:
             unrated = rec["rating_count"] == 0
+            product_name = rec["product_name"]
+            variant_name = rec["variant_name"]
+            summary = strip_html(rec["summary"])
             variant = Variant(
                 product_id=rec["product_id"],
                 article_id=rec["article_id"],
@@ -109,9 +113,9 @@ def load_catalog(
                 locale=rec["locale"],
                 pet_type=rec["pet_type"],
                 brand=rec["brands"],
-                product_name=rec["product_name"],
-                variant_name=rec["variant_name"],
-                summary=strip_html(rec["summary"]),
+                product_name=product_name,
+                variant_name=variant_name,
+                summary=summary,
                 description=strip_html(rec["description"]),
                 ingredients=strip_html(rec["ingredients"]),
                 feeding_recommendations=strip_html(rec["feeding_recommendations"]),
@@ -121,6 +125,7 @@ def load_catalog(
                 rating_average=None if unrated else rec["rating_average"],
                 rating_count=rec["rating_count"],
                 in_stock=rec["stock_units"] > 0,
+                food_form=facets.classify_food_form(product_name, variant_name, summary),
             )
         except (KeyError, TypeError, ValidationError) as exc:
             raise ValueError(f"Malformed catalog record at index {i}: {exc}") from exc

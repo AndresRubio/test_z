@@ -70,6 +70,31 @@ def test_cleans_and_maps_fields(tmp_path):
     assert not hasattr(v, "margin_pct")
 
 
+def test_derives_food_form_from_name_and_summary(tmp_path):
+    records = [
+        _record(variant_id="a.1", product_name="Purina ONE Adult Huhn Trockenfutter"),
+        _record(variant_id="b.1", product_name="Whiskas Adult Thunfisch in Gelee Nassfutter"),
+        _record(variant_id="c.1", product_name="Chuckit! Ultra Squeaker Ball", summary="toy"),
+    ]
+    variants, _ = _load(tmp_path, records)
+    by_id = {v.variant_id: v for v in variants}
+    assert by_id["a.1"].food_form == "DRY"
+    assert by_id["b.1"].food_form == "WET"
+    assert by_id["c.1"].food_form is None  # non-food stays unlabelled
+
+
+def test_food_form_ignores_cross_references_in_description(tmp_path):
+    # Wet product whose description mentions dry food must still label WET, not
+    # abstain — the description is deliberately not consulted.
+    rec = _record(
+        product_name="Schesir Filet in Gelee",
+        summary="Saftiges Filet in Gelee",
+        description="Ideal als Ergänzung zum täglichen Trockenfutter / dry food.",
+    )
+    variants, _ = _load(tmp_path, [rec])
+    assert variants[0].food_form == "WET"
+
+
 def test_drops_exact_duplicates(tmp_path):
     variants, report = _load(tmp_path, [_record(), _record(), _record(site_id=3, locale="en-GB")])
     assert len(variants) == 2  # duplicate (site 1, "1.0") dropped, site-3 twin kept
