@@ -8,16 +8,38 @@ all LLMs served locally by Ollama. No API keys, fully offline.
 ## High-Level Design
 
 ```mermaid
-flowchart LR
-    C[Client] -->|POST /chat| A[FastAPI]
-    A --> J["Judge (gemma4:e2b)\ntopicality verdict, fails open"]
-    J -->|off-topic| D["Polite decline\nin the Site locale"]
-    J -->|on-topic| R["Retriever seam\nBM25 per-Site index"]
-    R -->|empty| N["Honest no-match answer\nin the Site locale"]
-    R --> P["Product Cards\nbounded context"]
-    P --> G["Generator (gemma4:e4b)\nanswers in the Site locale"]
-    G --> A
-    A -->|answer + retrieved_products| C
+flowchart TB
+    subgraph ingest["Startup — ingest runs once (deterministic, counts pinned by tests)"]
+        direction LR
+        DS[("product_catalog_dataset.json\n300 raw rows")]
+        DS --> POL["Data-quality policies\n−12 exact dups · −1 conflict (keep-first)\nnull unrated · −24 price quarantine\nstrip HTML · derive food_form\nInternal Fields excluded by construction"]
+        POL --> REPO["CatalogRepository\n263 retrievable Variants\nhard-partitioned per Site"]
+        REPO --> IDX["Per-Site BM25 index\nname/brand ×3 boost"]
+        REPO -.->|hybrid backend only| EMB["Per-Site MiniLM embeddings\nprecomputed at boot"]
+    end
+
+    subgraph chat["Per request — POST /chat"]
+        direction LR
+        C[Client] -->|POST /chat| A[FastAPI]
+        A -->|unknown Site| ERR["404\nnames the valid Sites"]
+        A --> H{"Greeting?"}
+        H -->|yes| GR["Static welcome\nin the Site locale"]
+        H -->|no| J["Judge (gemma4:e2b)\ntopicality verdict, fails open"]
+        J -->|off-topic| D["Polite decline\nin the Site locale"]
+        J -->|on-topic| R{{"Retriever seam\nZA_RETRIEVER_BACKEND"}}
+        R --> BM["Lexical leg — BM25"]
+        R -.->|hybrid only| SE["Semantic leg — MiniLM cosine"]
+        BM --> FUSE["Ranked Variants\nBM25 alone (default), or\nRRF-fused with semantic (hybrid)\npet_type hard-filter, food_form soft-boost"]
+        SE -.->|RRF| FUSE
+        FUSE -->|empty| N["Honest no-match answer\nin the Site locale"]
+        FUSE --> P["Product Cards\nbounded context"]
+        P --> G["Generator (gemma4:e4b)\nanswers in the Site locale"]
+        G --> A
+        A -->|answer + retrieved_products| C
+    end
+
+    IDX --> BM
+    EMB -.->|hybrid only| SE
 ```
 
 - **Catalog** (`app/catalog`): ingest applies five data-quality policies to
@@ -32,10 +54,12 @@ flowchart LR
   (`ZA_RETRIEVER_BACKEND=hybrid`), falling back to BM25 with a warning when the
   embedding stack is not installed. Both backends apply the same facet rules:
   `pet_type` hard-filters, `food_form` soft-boosts.
-- **Chat** (`app/chat`): Judge → Retriever → Generator. The Judge is a
-  prompt-only check on the tiny model; off-topic queries never reach retrieval
-  or generation. Declines and no-match answers are static templates in the Site
-  locale — zero wasted compute.
+- **Chat** (`app/chat`): Judge → Retriever → Generator, fronted by a
+  zero-LLM greeting fast-path (a bare "Hi"/"Hola"/"Hallo" short-circuits to a
+  static welcome before the Judge). The Judge is a prompt-only check on the tiny
+  model; off-topic queries never reach retrieval or generation. Greetings,
+  declines, and no-match answers are static templates in the Site locale — zero
+  wasted compute.
 - **API** (`app/api`): `POST /chat`, `GET /health`. Handled cases (off-topic,
   no-match) return 200 with `products: [], count: 0`; unknown Site → 404 naming
   the valid Sites; malformed body → 422; Ollama unreachable *during generation*

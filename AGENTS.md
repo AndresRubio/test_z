@@ -77,7 +77,10 @@ which orchestrates three stages, each isolated behind its own module:
 Cross-cutting design facts that span files and must not be regressed:
 
 - **`ChatService.handle` resolves the Site first** — unknown `site_id` → 404
-  *before* any LLM call. Then Judge → decline → retrieve → no-match → generate.
+  *before* any LLM call. A bare **greeting** (`app/chat/greeting.py::is_greeting`,
+  whole-message match) then short-circuits to a static welcome — the same
+  zero-LLM template pattern as decline/no-match. Otherwise: Judge → decline →
+  retrieve → no-match → generate.
   Declines and no-match answers are **static templates** (zero LLM cost), so a
   **503 only surfaces when a query actually reaches the Generator** (conditional
   by design).
