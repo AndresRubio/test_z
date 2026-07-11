@@ -69,7 +69,7 @@ An async chatbot API: `POST /chat` accepts a `site_id` and a natural-language `q
 - Cross-lingual retrieval
 - Docker/containerization, CI pipelines, auth, and rate limiting
 - Automated LLM-quality evaluation harness
-- Git repository setup and submission logistics (owner handles these)
+- Git repository setup and submission logistics (Andres handles these)
 
 ## Further Notes
 
