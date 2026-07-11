@@ -40,5 +40,7 @@ class SentenceTransformerEmbedder:
         self._model = SentenceTransformer(model_name)
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        vectors = self._model.encode(texts, normalize_embeddings=True)
+        # show_progress_bar=False: tqdm writes carriage-return progress bars to
+        # stderr, which shred the structured JSON log stream at startup.
+        vectors = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
         return [[float(x) for x in row] for row in vectors]

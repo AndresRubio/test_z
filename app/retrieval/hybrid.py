@@ -15,6 +15,7 @@ lists like outranks one that only a single list likes, and a paraphrase or
 cross-lingual match invisible to BM25 can still surface via the semantic leg.
 """
 
+import asyncio
 import logging
 import math
 import time
@@ -125,7 +126,13 @@ class HybridRetriever:
             return []
         pool = max(k, _FUSION_POOL)
         lexical = [scored.variant for scored in await self._bm25.retrieve(site_id, query, pool)]
-        semantic = self._semantic_ranking(site_id, query, pool)
+        # The model forward pass is the one genuinely slow step here: isolated
+        # live polling measured each novel query's encode stalling the event
+        # loop ~30-50 ms when run inline. Off-loop, concurrent requests no
+        # longer feel it. The LRU cache sits inside `_embed_query`, so repeat
+        # queries pay only the thread hop.
+        query_vec = await asyncio.to_thread(self._embed_query, query)
+        semantic = self._semantic_ranking(site_id, query, pool, query_vec)
 
         # TO_EXPLAIN — fusion choice: RRF over weighted score interpolation
         # because BM25 scores (unbounded, corpus-dependent) and cosine (~[0,1])
@@ -150,8 +157,9 @@ class HybridRetriever:
             )
         return [ScoredVariant(variant=v, score=s) for v, s in ordered[:k]]
 
-    def _semantic_ranking(self, site_id: int, query: str, pool: int) -> list[Variant]:
-        query_vec = self._embed_query(query)
+    def _semantic_ranking(
+        self, site_id: int, query: str, pool: int, query_vec: tuple[float, ...]
+    ) -> list[Variant]:
         pet = facets.detect_pet_type(query)  # authoritative -> hard filter
         form = facets.detect_food_form(query)  # text-derived -> soft re-rank
         scored: list[tuple[Variant, float]] = []

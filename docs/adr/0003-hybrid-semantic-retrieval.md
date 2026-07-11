@@ -9,7 +9,7 @@ The Retriever seam left by ADR 0001 gets its designed second binding: a hybrid b
 - Brute-force cosine is O(n) per query — right for ~100 Variants per Site; an ANN index (FAISS/hnswlib) or vector DB (pgvector/Qdrant) replaces the scan when catalogs grow.
 - Startup pays the one-time embedding pass (model load dominates); a persisted embedding store keyed by content hash is the evolution if boot time starts to matter.
 - Fused scores are RRF rank credits, not BM25 scores — downstream only orders by them, but they are not comparable across backends.
-- The embedding forward pass runs synchronously in the event loop (~ms per uncached query on CPU); acceptable for the PoC, offload to a thread if it ever shows up in traces.
+- The embedding forward pass runs in a worker thread (`asyncio.to_thread`), not on the event loop. Measured with an isolated poller against the live server (2026-07-11): inline encodes stalled the loop ~30–50 ms per novel query; off-loop those stalls drop into poller noise (<20 ms). A separate one-time ~100 ms first-request stall appears with *and* without the fix, so it is framework/client lazy-init, not the encode. Cache hits pay only the thread hop.
 
 ## Measured on the golden set (2026-07-11, live eval)
 
