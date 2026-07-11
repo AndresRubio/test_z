@@ -1,0 +1,424 @@
+<title>Claude Code Workflow Schema — test_z</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #1a2230;
+    --text-muted: #5a6678;
+    --border: #dde2ea;
+    --rail: #c7cfdb;
+
+    --hook: #b45309;      --hook-bg: #fdf3e6;   --hook-line: #e7c9a0;
+    --process: #4338ca;   --process-bg: #eef0fd; --process-line: #c6cbf3;
+    --impl: #0f766e;      --impl-bg: #e6f4f2;   --impl-line: #a9d8d1;
+    --verify: #7c3aed;    --verify-bg: #f2ecfd; --verify-line: #d5c3f5;
+    --integrate: #475569; --integrate-bg: #edf0f4; --integrate-line: #c4ccd8;
+
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, "Cascadia Mono", "Roboto Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --r: 10px;
+    --shadow: 0 1px 2px rgba(20,30,50,.05), 0 6px 20px rgba(20,30,50,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1218;
+      --surface: #161c25;
+      --surface-2: #1c232e;
+      --text: #e6ebf2;
+      --text-muted: #97a3b6;
+      --border: #2a3340;
+      --rail: #37414f;
+
+      --hook: #f2a765;      --hook-bg: #2a2013;   --hook-line: #4d3a1c;
+      --process: #a5b0ff;   --process-bg: #191b34; --process-line: #343a63;
+      --impl: #5fc9bd;      --impl-bg: #10241f;   --impl-line: #1f4640;
+      --verify: #b79bff;    --verify-bg: #1e1734; --verify-line: #3a2c60;
+      --integrate: #97a6bb; --integrate-bg: #1a212b; --integrate-line: #313c49;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8fa; --surface: #ffffff; --surface-2: #eef1f5; --text: #1a2230;
+    --text-muted: #5a6678; --border: #dde2ea; --rail: #c7cfdb;
+    --hook: #b45309; --hook-bg: #fdf3e6; --hook-line: #e7c9a0;
+    --process: #4338ca; --process-bg: #eef0fd; --process-line: #c6cbf3;
+    --impl: #0f766e; --impl-bg: #e6f4f2; --impl-line: #a9d8d1;
+    --verify: #7c3aed; --verify-bg: #f2ecfd; --verify-line: #d5c3f5;
+    --integrate: #475569; --integrate-bg: #edf0f4; --integrate-line: #c4ccd8;
+    --shadow: 0 1px 2px rgba(20,30,50,.05), 0 6px 20px rgba(20,30,50,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1218; --surface: #161c25; --surface-2: #1c232e; --text: #e6ebf2;
+    --text-muted: #97a3b6; --border: #2a3340; --rail: #37414f;
+    --hook: #f2a765; --hook-bg: #2a2013; --hook-line: #4d3a1c;
+    --process: #a5b0ff; --process-bg: #191b34; --process-line: #343a63;
+    --impl: #5fc9bd; --impl-bg: #10241f; --impl-line: #1f4640;
+    --verify: #b79bff; --verify-bg: #1e1734; --verify-line: #3a2c60;
+    --integrate: #97a6bb; --integrate-bg: #1a212b; --integrate-line: #313c49;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  .page {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    padding: clamp(20px, 4vw, 56px);
+    max-width: 1200px;
+    margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- header ---- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--impl); box-shadow: 0 0 0 3px var(--impl-bg); }
+  h1 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(26px, 4.4vw, 40px);
+    line-height: 1.1;
+    letter-spacing: -.01em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  h1 .accent { color: var(--impl); }
+  .lede {
+    font-size: clamp(15px, 1.7vw, 17px);
+    color: var(--text-muted);
+    max-width: 64ch;
+    margin: 0 0 4px;
+  }
+  .repo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+  }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 14px 18px;
+    margin: 28px 0 6px;
+    box-shadow: var(--shadow);
+  }
+  .legend .grp { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .legend .lg { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+  .legend .sep { width: 1px; align-self: stretch; background: var(--border); }
+  .legend .state { font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 7px; }
+  .chip-demo { width: 26px; height: 15px; border-radius: 4px; flex: none; }
+  .chip-demo.solid { background: var(--impl); }
+  .chip-demo.dashed { background: transparent; border: 1.5px dashed var(--rail); }
+
+  /* ---- pipeline ---- */
+  .stage-head {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 34px 0 14px;
+  }
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 15px 16px 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
+    background: var(--cat);
+  }
+  .card .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cat);
+    letter-spacing: .02em;
+  }
+  .cat-tag {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cat);
+    background: var(--cat-bg);
+    border-radius: 4px;
+    padding: 3px 6px;
+    white-space: nowrap;
+  }
+  .card h3 {
+    font-family: var(--mono);
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 2px 0 0;
+    color: var(--text);
+    line-height: 1.25;
+  }
+  .card p { font-size: 13px; color: var(--text-muted); margin: 0; }
+  .ev {
+    margin-top: auto;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text);
+    background: var(--cat-bg);
+    border: 1px solid var(--cat-line);
+    border-radius: 5px;
+    padding: 4px 7px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .ev .k { color: var(--cat); font-weight: 600; }
+
+  /* category theming applied per-card */
+  .c-hook { --cat: var(--hook); --cat-bg: var(--hook-bg); --cat-line: var(--hook-line); }
+  .c-process { --cat: var(--process); --cat-bg: var(--process-bg); --cat-line: var(--process-line); }
+  .c-impl { --cat: var(--impl); --cat-bg: var(--impl-bg); --cat-line: var(--impl-line); }
+  .c-verify { --cat: var(--verify); --cat-bg: var(--verify-bg); --cat-line: var(--verify-line); }
+  .c-integrate { --cat: var(--integrate); --cat-bg: var(--integrate-bg); --cat-line: var(--integrate-line); }
+
+  /* idle / configured-but-not-applied */
+  .card.idle {
+    background: repeating-linear-gradient(135deg, transparent, transparent 9px, var(--surface-2) 9px, var(--surface-2) 10px), var(--surface);
+    border-style: dashed;
+    border-color: var(--rail);
+    box-shadow: none;
+  }
+  .card.idle::before { opacity: .5; }
+  .card.idle h3, .card.idle .num { color: var(--text-muted); }
+  .card.idle .cat-tag { background: transparent; border: 1px dashed var(--rail); color: var(--text-muted); }
+  .card.idle .ev { background: transparent; border-style: dashed; border-color: var(--rail); color: var(--text-muted); }
+  .card.idle .ev .k { color: var(--text-muted); }
+
+  /* trailing hook is applied-configured but conditional -> half state */
+  .partial-note { font-size: 11px; }
+
+  /* ---- idle tray ---- */
+  .tray {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .pill {
+    background: var(--surface);
+    border: 1px dashed var(--rail);
+    border-radius: 8px;
+    padding: 11px 13px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .pill .nm { font-family: var(--mono); font-size: 12.5px; color: var(--text); font-weight: 600; }
+  .pill .why { font-size: 11.5px; color: var(--text-muted); }
+  .pill .badge {
+    align-self: flex-start;
+    font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; margin-bottom: 2px;
+  }
+
+  /* ---- footer ---- */
+  .foot {
+    margin-top: 34px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex; flex-wrap: wrap; gap: 6px 18px;
+  }
+  .foot code { font-family: var(--mono); color: var(--text); font-size: 11.5px; }
+  .foot .fitem { display: flex; align-items: center; gap: 7px; }
+
+  @media (max-width: 480px) {
+    .legend { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .legend .sep { display: none; }
+  }
+</style>
+
+<div class="page">
+  <h2 class="sr-only">A color-coded block diagram of the Claude Code skills-and-hooks workflow actually used in the test_z repository, from the SessionStart hook through brainstorming, planning, worktrees, TDD, subagent-driven development, code review, live verification, confession audit, and commit — plus configured-but-idle skills.</h2>
+
+  <p class="eyebrow"><span class="dot"></span> Claude Code · Skills &amp; Hooks · reconstructed from repo evidence</p>
+  <h1>How work actually flows through <span class="accent">test_z</span></h1>
+  <p class="lede">A single Claude Code session on this assistant PoC runs a disciplined <em>superpowers</em> pipeline — every stage below is grounded in what the config declares <span class="repo">and</span> what the git history, plan artifacts, and session notes prove was applied.</p>
+
+  <!-- LEGEND -->
+  <div class="legend" role="group" aria-label="Legend">
+    <div class="grp">
+      <span class="lg"><span class="swatch" style="background:var(--hook)"></span>Hook</span>
+      <span class="lg"><span class="swatch" style="background:var(--process)"></span>Process skill</span>
+      <span class="lg"><span class="swatch" style="background:var(--impl)"></span>Implementation skill</span>
+      <span class="lg"><span class="swatch" style="background:var(--verify)"></span>Verification skill</span>
+      <span class="lg"><span class="swatch" style="background:var(--integrate)"></span>Integration</span>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <span class="state"><span class="chip-demo solid"></span>solid = applied</span>
+      <span class="state"><span class="chip-demo dashed"></span>dashed = configured, idle</span>
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <p class="stage-head">// the session pipeline — read 01 → 11</p>
+  <div class="flow">
+
+    <div class="card c-hook">
+      <div class="top"><span class="num">01</span><span class="cat-tag">Hook · SessionStart</span></div>
+      <h3>using-superpowers</h3>
+      <p>Session opens by injecting the skill-discovery gate: check for a matching skill before any reply.</p>
+      <div class="ev"><span class="k">applied</span> · SessionStart hook fires every run (superpowers plugin)</div>
+    </div>
+
+    <div class="card c-process">
+      <div class="top"><span class="num">02</span><span class="cat-tag">Process</span></div>
+      <h3>brainstorming</h3>
+      <p>Shape intent &amp; design before code — one design doc per feature slice.</p>
+      <div class="ev"><span class="k">applied</span> · <code>docs/specs/*/*-design.md</code> (web-ui, streaming, conversation)</div>
+    </div>
+
+    <div class="card c-process">
+      <div class="top"><span class="num">03</span><span class="cat-tag">Process</span></div>
+      <h3>writing-plans</h3>
+      <p>Turn the design into a task-by-task checklist plan before touching code.</p>
+      <div class="ev"><span class="k">applied</span> · <code>*.plan.md</code> + <code>docs/superpowers/plans/</code></div>
+    </div>
+
+    <div class="card c-impl">
+      <div class="top"><span class="num">04</span><span class="cat-tag">Impl</span></div>
+      <h3>using-git-worktrees</h3>
+      <p>Isolate each feature in its own worktree so parallel agents never collide.</p>
+      <div class="ev"><span class="k">applied</span> · 3× <code>Merge branch 'worktree-agent-…'</code></div>
+    </div>
+
+    <div class="card c-impl">
+      <div class="top"><span class="num">05</span><span class="cat-tag">Impl</span></div>
+      <h3>test-driven-development</h3>
+      <p>Red first, then green — commit a failing test, then the code that passes it.</p>
+      <div class="ev"><span class="k">applied</span> · <code>0247aa7</code> WIP/red → <code>74db542</code> green</div>
+    </div>
+
+    <div class="card c-impl">
+      <div class="top"><span class="num">06</span><span class="cat-tag">Impl</span></div>
+      <h3>subagent-driven-development</h3>
+      <p>Controller writes per-task briefs, dispatches implementers, collects reports.</p>
+      <div class="ev"><span class="k">applied</span> · <code>.superpowers/sdd/</code> task-briefs + reports + progress</div>
+    </div>
+
+    <div class="card c-impl">
+      <div class="top"><span class="num">07</span><span class="cat-tag">Impl · UI</span></div>
+      <h3>frontend-design</h3>
+      <p>Brand-styled test console &amp; SSE streaming UI, polished in small passes.</p>
+      <div class="ev"><span class="k">applied</span> · <code>06c3e7e</code> brand console, <code>40c6868</code> visual pass</div>
+    </div>
+
+    <div class="card c-verify">
+      <div class="top"><span class="num">08</span><span class="cat-tag">Verify</span></div>
+      <h3>requesting-code-review</h3>
+      <p>Every task's diff reviewed before it lands; findings triaged, fixed, or roadmapped.</p>
+      <div class="ev"><span class="k">applied</span> · <code>review-*.diff</code> saved, "review clean / READY TO MERGE"</div>
+    </div>
+
+    <div class="card c-verify">
+      <div class="top"><span class="num">09</span><span class="cat-tag">Verify</span></div>
+      <h3>verification-before-completion · verify</h3>
+      <p>Drive the real flow live — browser + server — before claiming done. Evidence over assertion.</p>
+      <div class="ev"><span class="k">applied</span> · "Manual smoke PASSED", live <code>:8000/:8001</code>, Phoenix spans</div>
+    </div>
+
+    <div class="card c-verify">
+      <div class="top"><span class="num">10</span><span class="cat-tag">Verify</span></div>
+      <h3>confession-box</h3>
+      <p>Honest retrospective — surface any skipped test, mock, or hidden shortcut.</p>
+      <div class="ev"><span class="k">applied</span> · verification-audit workflow (session memory)</div>
+    </div>
+
+    <div class="card c-integrate">
+      <div class="top"><span class="num">11</span><span class="cat-tag">Integration</span></div>
+      <h3>commit &amp; merge</h3>
+      <p>Conventional commits with a Co-Authored-By trailer; worktree branch merged to master.</p>
+      <div class="ev"><span class="k">applied</span> · <code>Co-Authored-By: Claude Opus 4.8 / Fable 5</code></div>
+    </div>
+
+    <div class="card c-hook idle">
+      <div class="top"><span class="num">—</span><span class="cat-tag">Hook · Stop</span></div>
+      <h3>ralph-loop (Stop hook)</h3>
+      <p class="partial-note">Wired to auto-continue on Stop, but no autonomous loop ran in this history.</p>
+      <div class="ev"><span class="k">configured, idle</span> · <code>stop-hook.sh</code> present; no loop commits</div>
+    </div>
+
+  </div>
+
+  <!-- IDLE TRAY -->
+  <p class="stage-head">// enabled plugins that stayed on the shelf here</p>
+  <div class="tray">
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">pr-review-toolkit</span>
+      <span class="why">code-reviewer, silent-failure-hunter, type-design — superseded by the superpowers review path; no PRs (local issue tracker).</span>
+    </div>
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">code-simplifier</span>
+      <span class="why">Enabled, but cleanups went through ruff lint commits (<code>style:</code>), not the skill.</span>
+    </div>
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">claude-md-management</span>
+      <span class="why">Available for CLAUDE.md audits; not invoked in the tracked history.</span>
+    </div>
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">skill-creator</span>
+      <span class="why">Enabled; no skills authored in this repo.</span>
+    </div>
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">atlassian · gitlab · linear · github</span>
+      <span class="why">Trackers enabled; project uses local markdown issues under <code>docs/specs/</code> instead.</span>
+    </div>
+    <div class="pill">
+      <span class="badge">plugin</span>
+      <span class="nm">playwright · security-guidance</span>
+      <span class="why">Enabled; browser checks used the in-app preview tools, no security-review commits.</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="foot">
+    <span class="fitem">Config: <code>~/.claude/settings.json</code> · <code>.claude/settings.local.json</code></span>
+    <span class="fitem">Hooks: 1 Stop (ralph-loop) + SessionStart injection</span>
+    <span class="fitem">Evidence: 73 commits · <code>.superpowers/sdd/</code> · plan &amp; ADR docs</span>
+  </div>
+</div>
