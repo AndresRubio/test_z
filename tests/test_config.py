@@ -61,7 +61,9 @@ def test_ollama_tuning_defaults():
     assert s.num_ctx == 4096
     assert s.top_p == 0.9
     assert s.keep_alive == "30m"
-    assert s.judge_num_predict == 16
+    # None = uncapped: the gemma4:e2b Judge thinks before its JSON verdict and a
+    # cap starves the trace, silently disarming the fail-open guardrail.
+    assert s.judge_num_predict is None
 
 
 def test_ollama_tuning_env_override(monkeypatch):

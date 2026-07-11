@@ -14,11 +14,12 @@ class Judge:
     Fails open on any failure — a false decline hurts customers more than an
     answer that is grounded in catalog data anyway (PRD trade-off)."""
 
-    def __init__(self, llm, model: str, num_predict: int = 16):
+    def __init__(self, llm, model: str, num_predict: int | None = None):
         self._llm = llm
         self._model = model
-        # The verdict is a tiny JSON boolean — cap generation so the model
-        # stops early instead of running to its default token limit.
+        # None = uncapped. Do NOT default a cap here: gemma4:e2b thinks before
+        # its JSON and a starved trace yields empty content → fail-open lets
+        # everything through (see the TO_EXPLAIN in app/core/config.py).
         self._num_predict = num_predict
 
     async def is_on_topic(self, query: str) -> bool:

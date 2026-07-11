@@ -43,9 +43,17 @@ class Settings(BaseSettings):
     num_ctx: int = 4096  # context window (tokens)
     top_p: float = 0.9  # nucleus sampling cutoff
     keep_alive: str = "30m"  # keep models loaded between calls
-    # The Judge emits a tiny JSON boolean; capping its generation budget stops
-    # it early instead of letting it ramble to the model's default limit.
-    judge_num_predict: int = 16
+    # The Judge emits a tiny JSON boolean (~8 tokens), which makes a generation
+    # cap look like a free speed win — it is a trap. gemma4:e2b is a reasoning
+    # model: it emits a thinking trace BEFORE the JSON, `num_predict` counts
+    # those tokens too, and a starved trace returns EMPTY content — which the
+    # fail-open Judge waves through, silently disarming the guardrail (caught
+    # live by the golden-set eval: every off-topic case suddenly retrieved
+    # products; the only symptom was a "verdict unparseable ('')" warning).
+    # Default None = uncapped: the verdict stops itself, and the request
+    # timeout already bounds a runaway. The knob stays for non-reasoning
+    # judge models, where a small cap genuinely helps.
+    judge_num_predict: int | None = None
     catalog_path: Path = Path("product_catalog_dataset.json")
     max_plausible_price: float = 500.0  # ingest quarantine threshold
     tracing_enabled: bool = False
