@@ -1,6 +1,26 @@
 # Hybrid semantic retrieval behind the seam, opt-in
 
-The Retriever seam left by ADR 0001 gets its designed second binding: a hybrid backend (`ZA_RETRIEVER_BACKEND=hybrid`) that fuses the unchanged BM25 ranking with cosine similarity over sentence embeddings (`all-MiniLM-L6-v2`) using Reciprocal Rank Fusion. RRF over score interpolation because BM25 scores (unbounded, corpus-dependent) and cosine (~[0,1]) live on incomparable scales — rank fusion needs no calibration, just one constant (`ZA_RRF_K`). The facet contract is unchanged on both legs: `pet_type` hard-filters, `food_form` soft-boosts ×1.5/×0.85; the semantic leg's analog of BM25's `score > 0` cutoff is a cosine floor (`ZA_MIN_SEMANTIC_SIMILARITY`). Variant embeddings are precomputed in memory per Site at startup (timed and logged); query embeddings sit behind a small LRU. Crucially, the whole stack is opt-in: sentence-transformers is an optional extra (`uv sync --extra semantic`), the import is lazy, and if the model is unavailable the factory logs a warning and boots on BM25 — the default install, the offline test suite, and the graded `bm25` path are untouched.
+The Retriever seam left by ADR 0001 gets its designed second binding: a hybrid
+backend (`ZA_RETRIEVER_BACKEND=hybrid`) that fuses the unchanged BM25 ranking
+with cosine similarity over sentence embeddings (`all-MiniLM-L6-v2`), merged
+with Reciprocal Rank Fusion (RRF).
+
+Key choices, each with its reason:
+
+- **RRF instead of mixing scores.** BM25 scores are unbounded and depend on
+  the corpus; cosine lives in ~[0, 1]. The two scales cannot be compared, so
+  we fuse *ranks*, not scores — no calibration needed, one constant
+  (`ZA_RRF_K`).
+- **Same facet rules on both legs.** `pet_type` hard-filters, `food_form`
+  soft-boosts ×1.5/×0.85. The semantic leg's version of BM25's `score > 0`
+  cutoff is a cosine floor (`ZA_MIN_SEMANTIC_SIMILARITY`).
+- **Embeddings live in memory.** Variant embeddings are precomputed per Site
+  at startup (timed and logged); query embeddings sit behind a small LRU
+  cache.
+- **The whole stack is opt-in.** sentence-transformers is an optional extra
+  (`uv sync --extra semantic`), the import is lazy, and if the model is
+  unavailable the factory logs a warning and boots on BM25. The default
+  install, the offline test suite, and the graded `bm25` path are untouched.
 
 ## Consequences
 
