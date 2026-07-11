@@ -76,39 +76,60 @@ export ZA_RETRIEVER_BACKEND=hybrid
 
 ## How it works
 
+### Ingest Pipeline (Startup)
 ```mermaid
-flowchart TB
-    subgraph ingest["Startup — ingest runs once (deterministic, counts pinned by tests)"]
-        direction LR
-        DS[("product_catalog_dataset.json\n300 raw rows")]
-        DS --> POL["Data-quality policies\n−12 exact dups · −1 conflict (keep-first)\nnull unrated · −24 price quarantine\nstrip HTML · derive food_form\nInternal Fields excluded by construction"]
-        POL --> REPO["CatalogRepository\n263 retrievable Variants\nhard-partitioned per Site"]
-        REPO --> IDX["Per-Site BM25 index\nname/brand ×3 boost"]
-        REPO -.->|hybrid backend only| EMB["Per-Site MiniLM embeddings\nprecomputed at boot"]
-    end
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
 
-    subgraph chat["Per request — POST /chat"]
-        direction LR
-        C[Client] -->|POST /chat| A[FastAPI]
-        A -->|unknown Site| ERR["404\nnames the valid Sites"]
-        A --> H{"Greeting?"}
-        H -->|yes| GR["Static welcome\nin the Site locale"]
-        H -->|no| J["Judge (gemma4:e2b)\ntopicality verdict, fails open"]
-        J -->|off-topic| D["Polite decline\nin the Site locale"]
-        J -->|on-topic| R{{"Retriever seam\nZA_RETRIEVER_BACKEND"}}
-        R --> BM["Lexical leg — BM25"]
-        R -.->|hybrid only| SE["Semantic leg — MiniLM cosine"]
-        BM --> FUSE["Ranked Variants\nBM25 alone (default), or\nRRF-fused with semantic (hybrid)\npet_type hard-filter, food_form soft-boost"]
-        SE -.->|RRF| FUSE
-        FUSE -->|empty| N["Honest no-match answer\nin the Site locale"]
-        FUSE --> P["Product Cards\nbounded context"]
-        P --> G["Generator (gemma4:e4b)\nanswers in the Site locale"]
-        G --> A
-        A -->|answer + retrieved_products| C
-    end
+    classDef default fill:#ffffff,stroke:#1f2937,stroke-width:2.8px,rx:10,ry:10,font-size:16px;
 
-    IDX --> BM
-    EMB -.->|hybrid only| SE
+    DS[("📊 product_catalog_dataset.json\n300 raw rows")]
+    POL["🔍 Data-quality policies\n−12 exact dups · −1 conflict\n−24 price quarantine\nstrip HTML · derive food_form"]
+    REPO["📦 CatalogRepository\n263 retrievable Variants"]
+    IDX["🔎 Per-Site BM25 index\n(name/brand ×3 boost)"]
+    EMB["🧠 Per-Site MiniLM embeddings\n(precomputed)"]
+
+    DS --> POL --> REPO
+    REPO --> IDX
+    REPO -.->|hybrid only| EMB
+
+    style DS fill:#f0f9ff
+    style REPO fill:#f0f9ff
+```
+
+### Per Request flow
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+
+    classDef default fill:#ffffff,stroke:#1f2937,stroke-width:2.8px,rx:10,ry:10,font-size:16px;
+    classDef decision fill:#ffffff,stroke:#b91c1c,stroke-width:3px;
+
+    C[("👤 Client")] 
+    A["⚡ FastAPI"]
+    H{"🤔 Greeting?"}
+    J["⚖️ Judge (gemma4:e2b)"]
+    R{{"🔍 Retriever\nZA_RETRIEVER_BACKEND"}}
+    FUSE["🏆 Ranked Variants\n(BM25 + optional RRF)"]
+    P["🛍️ Product Cards"]
+    G["✍️ Generator (gemma4:e4b)"]
+
+    C -->|POST /chat| A
+    A --> H
+    H -->|yes| GR["🎉 Static welcome"]
+    H -->|no| J
+    J -->|off-topic| D["🙇 Polite decline"]
+    J -->|on-topic| R
+    R --> BM["📝 BM25"]
+    R -.->|hybrid| SE["🔎 MiniLM"]
+    BM & SE --> FUSE
+    FUSE -->|empty| N["🤷 No-match answer"]
+    FUSE --> P --> G --> A
+    A -->|response| C
+
+    style H fill:#fef2f2
+    style R fill:#fef2f2
+    style FUSE fill:#f0f9ff
 ```
 
 The four modules, one line each:
@@ -310,7 +331,7 @@ OpenInference spans: `chat` (CHAIN), `judge` (GUARDRAIL), `retrieve`
 
 ## PyCharm
 
-The repo ships a `.venv` provisioned by `uv sync` — point PyCharm at it:
+`uv sync` provisions a `.venv` in the repo root — point PyCharm at it:
 
 1. **Settings → Project → Python Interpreter → Add Interpreter → Existing
    environment** → select `.venv/bin/python` (PyCharm 2024.3+ can use
