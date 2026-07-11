@@ -47,32 +47,38 @@ which orchestrates three stages, each isolated behind its own module:
 1. **Judge** (`app/chat/judge.py`, model `gemma4:e2b`) — prompt-only topicality
    check. **Fails open**: any unparseable/failed verdict proceeds to retrieval
    with a warning. Off-topic → static decline, no further LLM calls.
-2. **Retriever** (`app/retrieval/`) — `base.py` defines the `Retriever` Protocol,
-   the **deliberate seam** for vector/hybrid/reranker backends (ADR 0001).
-   `factory.py::build_retriever` selects the binding from
-   `ZA_RETRIEVER_BACKEND`: `bm25.py` (default) — per-Site BM25, name/brand ×3
-   boost, `score > 0` — or `hybrid.py` (ADR 0003, opt-in) — the same BM25 leg
-   fused via RRF with cosine over embeddings (`embedder.py` Protocol;
-   `SentenceTransformerEmbedder` lazy-imports the optional `semantic` extra,
-   all-MiniLM-L6-v2 by default; unavailable stack → warning + BM25 fallback, the
-   app must always boot). Both backends share the facet rules from
-   `app/catalog/facets.py`, which correct BM25's bag-of-words blindness —
-   `pet_type` is authoritative so it **hard-filters** (a dog query never returns
-   a cat), while `food_form` (DRY/WET, derived at ingest from multilingual name
-   cues) is text-derived so it only **soft-boosts** the requested form
-   (×1.5 match / ×0.85 miss, shared `adjust_for_food_form`) — a strong match
-   still wins on merit. Detected facets are logged per query for supervision.
-3. **Generator** (`app/llm/`, model `gemma4:e4b`) — answers **always in the Site
-   locale**, regardless of query language (intended; see README). Multi-turn is
-   **stateless by contract**: an optional validated `history` (≤10 turns) on
-   `ChatRequest` reaches the Generator only (`system, *history, user`); the
-   Judge and Retriever see just the current query (`# TO_EXPLAIN` at the Judge
-   call). The generation user prompt fences the query in `<query>` tags with an
-   instruction-hierarchy line in the system prompt; the **Judge user prompt is
-   deliberately NOT fenced** — its few-shot "Customer message:" format fixed the
-   site15 false-decline and is pinned by tests. Ollama tuning knobs
-   (`ZA_NUM_THREAD/NUM_CTX/TOP_P/KEEP_ALIVE/JUDGE_NUM_PREDICT`) pass through
-   `OllamaClient` options; `num_thread` is omitted when unset.
+2. **Retriever** (`app/retrieval/`) — `base.py` defines the `Retriever`
+   Protocol, the **deliberate seam** for vector/hybrid/reranker backends
+   (ADR 0001). `factory.py::build_retriever` picks the binding from
+   `ZA_RETRIEVER_BACKEND`:
+   - `bm25.py` (default): per-Site BM25, name/brand ×3 boost, `score > 0`
+     cutoff.
+   - `hybrid.py` (ADR 0003, opt-in): the same BM25 leg fused via RRF with
+     cosine over embeddings. `embedder.py` holds the Embedder Protocol;
+     `SentenceTransformerEmbedder` lazy-imports the optional `semantic` extra
+     (all-MiniLM-L6-v2 by default). Unavailable stack → warning + BM25
+     fallback; the app must always boot.
+   - Both backends share the facet rules (`app/catalog/facets.py`), which
+     correct BM25's bag-of-words blindness. `pet_type` is authoritative, so
+     it **hard-filters** — a dog query never returns a cat. `food_form`
+     (DRY/WET, derived at ingest from multilingual name cues) is
+     text-derived, so it only **soft-boosts** (×1.5 match / ×0.85 miss,
+     shared `adjust_for_food_form`) — a strong match still wins on merit.
+     Detected facets are logged per query.
+3. **Generator** (`app/llm/`, model `gemma4:e4b`):
+   - Answers **always in the Site locale**, regardless of query language
+     (intended; see README).
+   - Multi-turn is **stateless by contract**: an optional validated `history`
+     (≤10 turns) on `ChatRequest` reaches the Generator only
+     (`system, *history, user`). The Judge and Retriever see just the current
+     query (`# TO_EXPLAIN` at the Judge call).
+   - The generation user prompt fences the query in `<query>` tags, backed by
+     an instruction-hierarchy line in the system prompt. The **Judge user
+     prompt is deliberately NOT fenced** — its few-shot "Customer message:"
+     format fixed the site15 false-decline and is pinned by tests.
+   - Ollama tuning knobs (`ZA_NUM_THREAD/NUM_CTX/TOP_P/KEEP_ALIVE/
+     JUDGE_NUM_PREDICT`) pass through `OllamaClient` options; `num_thread` is
+     omitted when unset.
 
 Cross-cutting design facts that span files and must not be regressed:
 
