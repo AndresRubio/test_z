@@ -182,15 +182,17 @@ Multi-turn (stateless): the client may resend the transcript as `history`
 (max 10 turns of `{role, content}`); the server stays memoryless and gives the
 prior turns to the Generator only — the built-in web console does this
 automatically. The Judge and Retriever still see just the current query, so a
-bare fragment ("what about the wet one?") retrieves poorly until the roadmap's
-query-rewrite step lands — full follow-up questions work:
+follow-up must keep its topic visible: "what about a wet food for the same
+sensitive stomach?" works, while a bare referent like "which of those is best?"
+can be declined — that gap is the roadmap's query-rewrite step (verified live;
+both behaviors are the documented `# TO_EXPLAIN` trade-off):
 
 ```bash
 curl -s localhost:8000/chat -X POST -H 'Content-Type: application/json' \
-  -d '{"site_id": 3, "query": "which of those is best for a puppy?",
+  -d '{"site_id": 3, "query": "what about a wet food for the same sensitive stomach?",
        "history": [
-         {"role": "user", "content": "dry food for a sensitive stomach"},
-         {"role": "assistant", "content": "I recommend the sensitive-formula dry foods …"}
+         {"role": "user", "content": "best dry food for a puppy with a sensitive stomach"},
+         {"role": "assistant", "content": "I recommend the sensitive-formula puppy dry foods …"}
        ]}' | python3 -m json.tool
 ```
 
@@ -270,10 +272,14 @@ The `Retriever` protocol is the seam where multilingual vector search, hybrid
 fusion (RRF), and a reranker slot in without touching the pipeline. That seam
 has since been exercised for real (ADR 0003): an opt-in hybrid backend fuses
 the unchanged BM25 leg with all-MiniLM-L6-v2 embeddings via RRF, precomputing
-Variant embeddings per Site at startup. It is deliberately **not** the default:
-the embedding model is English-centric, so it does not yet flip the
-cross-lingual `known_limitation` case — a multilingual model is a one-line
-`ZA_EMBEDDING_MODEL` swap, gated on the eval harness (roadmap #1).
+Variant embeddings per Site at startup. Measured live on the golden set, it is
+deliberately **not** the default: hybrid flips the cross-lingual
+`known_limitation` case to PASS but drops an exact-rare-term case
+(`site3-cat-kidney`: BM25 rank 1 vs semantic rank 33 → fused rank 11 — RRF
+rewards two-list agreement over one-list excellence). 12/12 beats 11/12+flip,
+so BM25 stays the default until a reranker or learned fusion weights recover
+both cases under the eval harness (roadmap #1; the full numbers are in
+ADR 0003).
 
 **The Judge fails open.** An unparseable verdict or a Judge LLM failure
 proceeds to retrieval with a warning log: a false decline hurts a customer
@@ -354,12 +360,13 @@ What the data work of this PoC demonstrates:
 
 1. **Hybrid retrieval + reranker through the existing seam** — *first half
    shipped* (ADR 0003): BM25 + all-MiniLM-L6-v2 fused with RRF, opt-in via
-   `ZA_RETRIEVER_BACKEND=hybrid`. Remaining: swap to a multilingual embedding
-   model (config-only) so the cross-lingual `known_limitation` case flips to
-   PASS under the eval harness; then a cross-encoder reranker on the fused
-   top-k; then an ANN index or vector DB (FAISS/pgvector/Qdrant) with a
-   persisted embedding store when catalogs outgrow brute-force cosine and
-   startup precompute.
+   `ZA_RETRIEVER_BACKEND=hybrid`. Live-measured: it flips the cross-lingual
+   `known_limitation` case to PASS but regresses one exact-rare-term case
+   (details in ADR 0003), so it stays opt-in. Remaining: a cross-encoder
+   reranker on the fused top-k (the designed fix for that regression),
+   a multilingual embedding model (config-only swap), then an ANN index or
+   vector DB (FAISS/pgvector/Qdrant) with a persisted embedding store when
+   catalogs outgrow brute-force cosine and startup precompute.
 2. **Evaluation depth**: grow the golden set, add LLM-as-judge scoring for
    groundedness and answer quality, run in CI.
 3. **Query understanding: slot extraction, then a planner**. Today intent
