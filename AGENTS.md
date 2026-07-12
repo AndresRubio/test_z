@@ -4,9 +4,10 @@ Async **FastAPI RAG chatbot API** ("Assistant") over a per-Site pet-supplies
 product catalog, **fully offline via Ollama** (no API keys). `POST /chat` runs a
 **Judge → Retriever → Generator** pipeline; `GET /health` reports readiness.
 
-Orientation, in order: domain vocabulary is in `CONTEXT.md` (read it — the terms
+Orientation: domain vocabulary is in `CONTEXT.md` (read it — the terms
 Site / Variant / Product Card / Internal Fields are used precisely everywhere),
 design rationale in `docs/adr/`, and the graded write-up in `README.md`.
+`docs/README.md` maps the docs folder and owns the suggested reading order.
 
 ## Hard constraints (non-negotiable)
 

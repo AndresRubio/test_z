@@ -2,12 +2,11 @@
 
 How this folder is organized:
 
-- **`adr/`** — Architecture Decision Records: the three decisions that shape
-  the system (BM25-first behind a retriever seam, the two-model
-  Judge/Generator split, hybrid semantic retrieval with its measured results).
+- **`adr/`** — Architecture Decision Records: one numbered record per
+  decision that shapes the system; the filenames are the index.
 - **`specs/<feature>/`** — point-in-time design records, one folder per
-  feature (`assistant` is the core PoC; `streaming`, `web-ui`, and
-  `conversation` are follow-ups): dated design docs plus, for `assistant`,
+  feature (`assistant` is the core PoC; the sibling folders are follow-up
+  features): dated design docs plus, for `assistant`,
   the PRD and the ingest plan. Their bodies are kept essentially as written
   so the decision trail stays honest; where reality moved on, a status note
   or inline annotation says so. (Throwaway execution checklists were removed
