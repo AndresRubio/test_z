@@ -50,9 +50,9 @@ Single screen, chat-style:
   with count, in/out-of-stock badge. Each reply has a "view raw JSON" toggle.
 - **Composer:** text input + send button, Enter to send; input disabled with
   a typing indicator while a request is in flight.
-- Exchanges are stateless, matching the API (the server still is; the console
-  now resends `history` client-side — see the status note above). Switching
-  Site mid-session applies to the next message only.
+- Exchanges were stateless, matching the API at the time (the server still
+  is; the console now resends `history` client-side — see the status note
+  above). Switching Site mid-session applies to the next message only.
 
 ## Error handling
 
