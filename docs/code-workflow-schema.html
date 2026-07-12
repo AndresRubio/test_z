@@ -272,7 +272,7 @@
 
   <p class="eyebrow"><span class="dot"></span> Claude Code · Skills &amp; Hooks · reconstructed from repo evidence</p>
   <h1>How work actually flows through <span class="accent">test_z</span></h1>
-  <p class="lede">A single Claude Code session on this assistant PoC runs a disciplined <em>superpowers</em> pipeline — every stage below is grounded in what the config declares <span class="repo">and</span> what the git history, plan artifacts, and session notes prove was applied.</p>
+  <p class="lede">A single Claude Code session on this assistant PoC runs a disciplined <em>superpowers</em> pipeline — every stage below is grounded in what the config declares <span class="repo">and</span> what the git history and the committed records in <code>docs/</code> prove was applied (plus untracked session working files, cited below as such).</p>
 
   <!-- LEGEND -->
   <div class="legend" role="group" aria-label="Legend">
@@ -312,7 +312,7 @@
       <div class="top"><span class="num">03</span><span class="cat-tag">Process</span></div>
       <h3>writing-plans</h3>
       <p>Turn the design into a task-by-task checklist plan before touching code.</p>
-      <div class="ev"><span class="k">applied</span> · <code>*.plan.md</code> + <code>docs/superpowers/plans/</code></div>
+      <div class="ev"><span class="k">applied</span> · <code>docs/specs/assistant/ingest-pipeline.plan.md</code> (the other plans were untracked working files, discarded once executed)</div>
     </div>
 
     <div class="card c-impl">
@@ -333,7 +333,7 @@
       <div class="top"><span class="num">06</span><span class="cat-tag">Impl</span></div>
       <h3>subagent-driven-development</h3>
       <p>Controller writes per-task briefs, dispatches implementers, collects reports.</p>
-      <div class="ev"><span class="k">applied</span> · <code>.superpowers/sdd/</code> task-briefs + reports + progress</div>
+      <div class="ev"><span class="k">applied</span> · <code>.superpowers/sdd/</code> task-briefs + reports + progress (untracked working files)</div>
     </div>
 
     <div class="card c-impl">
@@ -417,8 +417,8 @@
 
   <!-- FOOTER -->
   <div class="foot">
-    <span class="fitem">Config: <code>~/.claude/settings.json</code> · <code>.claude/settings.local.json</code></span>
+    <span class="fitem">Config: <code>~/.claude/settings.json</code> · <code>.claude/settings.local.json</code> (both untracked)</span>
     <span class="fitem">Hooks: 1 Stop (ralph-loop) + SessionStart injection</span>
-    <span class="fitem">Evidence: 73 commits · <code>.superpowers/sdd/</code> · plan &amp; ADR docs</span>
+    <span class="fitem">Evidence: the git history · the committed docs (ADRs, specs, ingest plan) · untracked session records</span>
   </div>
 </div>
