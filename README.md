@@ -280,6 +280,10 @@ on a larger labeled set is roadmap #2.
   is on the roadmap (#5).
 - **The Judge is a tiny model** — anchored with few-shot examples, still not
   infallible (measured story above).
+- **Numeric and categorical metadata constraints are mostly unenforced** —
+  only `pet_type` hard-filters today; price caps, pack weight, and rating
+  thresholds ride along as ordinary query text the ranker may ignore.
+  Slot extraction and text-to-SQL over the catalog are roadmap #3.
 
 ## Streaming (SSE)
 
@@ -355,7 +359,13 @@ OpenInference spans: `chat` (CHAIN), `judge` (GUARDRAIL), `retrieve`
 3. **Query understanding** — extract the slots shoppers state (life-stage,
    budget, weight band, health needs, brand): first keyword rules, then LLM
    slot extraction feeding a query planner. Rule stays: authoritative fields
-   hard-filter, derived signals soft-boost.
+   hard-filter, derived signals soft-boost. The natural end state for
+   metadata-shaped questions (pet type, pack weight, price caps, ratings,
+   stock) is **text-to-SQL**: once the catalog lives in a real database
+   (roadmap #7), compile the extracted slots into a validated, read-only
+   structured query and let retrieval handle only the fuzzy remainder —
+   exact constraints answered exactly, instead of hoping lexical or vector
+   similarity respects a number.
 4. **Deeper multi-turn** — *streaming and stateless `history` shipped*.
    Remaining: query rewriting in front of Judge + Retriever so fragment
    follow-ups work; optionally a server-side conversation store.
