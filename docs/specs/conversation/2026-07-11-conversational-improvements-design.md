@@ -11,8 +11,7 @@ out. It answers questions well, but does not yet *hold a conversation*. This
 doc records where it stands on three conversational axes — **entity
 identification**, **multi-turn / follow-ups**, and the **safetynet** — and the
 options for deepening each, so any one can later graduate into its own
-`-design.md` (implementation checklists are working files, discarded once
-executed).
+`-design.md`.
 
 The through-line of the current design: it is rigorous about what **cannot
 happen** (structural safety, data quality) and about **single-turn
