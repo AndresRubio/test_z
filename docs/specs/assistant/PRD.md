@@ -63,7 +63,7 @@ An async chatbot API: `POST /chat` accepts a `site_id` and a natural-language `q
 - **What makes a good test here**: assert external behavior only — HTTP responses, contract shapes, policy outcomes — never internal call patterns or private structure.
 - **The single seam**: the injected LLM client. API-level tests drive real HTTP through the ASGI test client with a fake client scripting Judge verdicts and generator answers; ingest, retrieval, site filtering, mapping, and error paths all run real code under those tests.
 - **Pure-unit layer**: ingest policies and the BM25 Retriever are tested as plain functions against the real dataset (or trimmed fixtures) — no substitution needed.
-- **LLM output quality** (does e4b actually answer well?) is not asserted in CI: a documented manual smoke script against live Ollama covers it; a labeled-query evaluation harness was a roadmap item (the structural golden-set harness in `evals/` has since shipped).
+- **LLM output quality** (does e4b actually answer well?) is not asserted in CI: a documented manual smoke script against live Ollama covers it; a labeled-query evaluation harness was — and remains — a roadmap item (what has since shipped in `evals/` is the structural golden-set harness, not LLM-scored).
 - **Prior art**: none — greenfield repo.
 
 ## Out of Scope
