@@ -387,8 +387,8 @@ OpenInference spans: `chat` (CHAIN), `judge` (GUARDRAIL), `retrieve`
    when the shopper has finished asking; **TTS** fed incrementally from the
    existing SSE token stream so speech starts before the full answer exists;
    and **interruptibility (barge-in)** — VAD during playback cancels TTS and
-   the in-flight generation, which the streaming contract already supports
-   (a stream may end without `done`). Voice tightens the latency budget:
+   drops the SSE connection mid-stream; the server already cleans up the
+   in-flight generation on client disconnect. Voice tightens the latency budget:
    time-to-first-token stops being cosmetic and becomes the product.
 
 ## What this PoC demonstrates
