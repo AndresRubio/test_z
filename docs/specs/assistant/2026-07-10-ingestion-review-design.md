@@ -1,10 +1,13 @@
 # Ingestion review — design for the write-up and gap-analysis record
 
 Date: 2026-07-10 · Status: applied (same day) · Scope: **docs-only** (no code
-changes). Kept as written; two details have since moved on — the README
-sections it prescribes landed under different headings ("The data story"
-instead of "Data & Ingestion"), and the ingest plan it references has since
-been committed.
+changes). Kept as written; the shipped README has since diverged in several
+details — the prescribed sections landed under different headings ("The data
+story" instead of "Data & Ingestion", "What this PoC demonstrates" instead of
+"Conclusions", "Roadmap" instead of "Future Roadmap") and the conclusions
+section landed after the roadmap, not before it; §3's slim-down landed as the
+"Design decisions" section rather than the prescribed paragraph; and the
+ingest plan it references has since been committed.
 
 ## Why
 
