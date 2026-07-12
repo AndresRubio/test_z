@@ -62,8 +62,9 @@ which orchestrates three stages, each isolated behind its own module:
      correct BM25's bag-of-words blindness. `pet_type` is authoritative, so
      it **hard-filters** — a dog query never returns a cat. `food_form`
      (DRY/WET, derived at ingest from multilingual name cues) is
-     text-derived, so it only **soft-boosts** (×1.5 match / ×0.85 miss,
-     shared `adjust_for_food_form`) — a strong match still wins on merit.
+     text-derived, so it only **soft-boosts** (×1.5 match / ×0.85 miss via
+     `adjust_for_food_form`, defined in `bm25.py` and shared by both legs) —
+     a strong match still wins on merit.
      Detected facets are logged per query.
 3. **Generator** (`app/llm/`, model `gemma4:e4b`):
    - Answers **always in the Site locale**, regardless of query language
@@ -130,16 +131,10 @@ known-limitation; it is now **fixed, not masked** — few-shot examples in
 `JUDGE_SYSTEM` make the tiny Judge classify the unreworded query correctly while
 still declining off-topic, so it is a scored (non-known-limitation) case again.
 
-## Agent skills
+## Local agent scaffolding (untracked)
 
-### Issue tracker
-
-Issues are tracked as local markdown files under `docs/specs/<feature>/` in this repo; no remote tracker, no PR triage surface. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles use their default names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+`docs/agents/` holds internal AI-workflow conventions (issue tracking, triage
+labels, domain-doc rules). It is deliberately gitignored — working scaffolding,
+not part of the submission — so it does not exist on a fresh clone. Everything
+a reviewer needs is in `README.md`, `CONTEXT.md`, `docs/`, and the
+folder-local READMEs in `evals/` and `scripts/`.

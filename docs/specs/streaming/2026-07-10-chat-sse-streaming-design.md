@@ -1,7 +1,7 @@
 # Design: Opt-in SSE streaming on POST /chat
 
 **Date:** 2026-07-10
-**Status:** Implemented (see this plan's commits on main)
+**Status:** Implemented — shipped the same evening as the opt-in `stream` flag on `POST /chat`.
 **Motivation:** Generation takes ~30s wall-clock on local Ollama. Streaming is
 the cheapest fix for the *perceived* latency: product cards appear ~1–2s in
 (after retrieval), and the answer types itself out as tokens arrive.

@@ -1,6 +1,6 @@
 # 04 — Judge guardrail: prompt-only topicality check before retrieval
 
-Status: ready-for-agent
+Status: done — shipped; verified by the offline test suite, the live smoke script, and the golden-set eval's off-topic decline cases
 
 ## Parent
 
@@ -14,12 +14,12 @@ Covers user stories 11, 12, 24.
 
 ## Acceptance criteria
 
-- [ ] "What's the weather today?" is politely declined in the Site locale with empty products, count 0
-- [ ] "Do dogs dream?" (pet trivia, no product angle) is declined; the task's example product query passes through unchanged
-- [ ] Off-topic queries trigger no retrieval and no generator call (observable via the fake LLM client and stage logs)
-- [ ] Unparseable Judge output proceeds to retrieval and logs a warning
-- [ ] Judge model is configurable via settings, defaulting to the tiny model
-- [ ] All behavior specified by TDD-first tests with scripted Judge verdicts
+- [x] "What's the weather today?" is politely declined in the Site locale with empty products, count 0
+- [x] "Do dogs dream?" (pet trivia, no product angle) is declined; the task's example product query passes through unchanged
+- [x] Off-topic queries trigger no retrieval and no generator call (observable via the fake LLM client and stage logs)
+- [x] Unparseable Judge output proceeds to retrieval and logs a warning
+- [x] Judge model is configurable via settings, defaulting to the tiny model
+- [x] All behavior specified by TDD-first tests with scripted Judge verdicts
 
 ## Blocked by
 

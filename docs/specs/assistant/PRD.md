@@ -1,6 +1,11 @@
 # PRD: Assistant (PoC)
 
-Status: ready-for-agent
+Status: implemented — kept as the point-in-time scope written before build
+(2026-07-10). Some "Out of Scope" items below have since shipped: streaming
+and multi-turn `history` as follow-ups, and hybrid retrieval's first half
+(reranking is still roadmap — ADR 0003). The LLM-quality eval harness remains
+roadmap; what shipped is the structural golden-set harness in `evals/`.
+`README.md` describes what actually exists today.
 
 ## Problem Statement
 
@@ -41,7 +46,7 @@ An async chatbot API: `POST /chat` accepts a `site_id` and a natural-language `q
 
 - **Runtime**: async Python service (FastAPI), dependencies managed with uv. Fully offline: all LLM calls go to a local Ollama server. No Docker for the PoC (host GPU access and model-pull UX; containerization is a roadmap item).
 - **Models**: `gemma4:e4b` for answer generation; `gemma4:e2b` for the Judge. Two-model split per ADR 0002 — right-sizing per stage, independently testable guardrail.
-- **API contract**: `POST /chat` takes `{site_id: int, query: str}` (both required). Success returns `{"answer": <string>, "retrieved_products": {"products": [<Product Card>...], "count": <int>}}`, products ordered by relevance. Unknown Site → 404 whose detail names the valid Sites; malformed body → 422. `GET /health` for probes. Single-turn only.
+- **API contract**: `POST /chat` takes `{site_id: int, query: str}` (both required). Success returns `{"answer": <string>, "retrieved_products": {"products": [<Product Card>...], "count": <int>}}`, products ordered by relevance. Unknown Site → 404 whose detail names the valid Sites; malformed body → 422. `GET /health` for probes. Single-turn only (at the time — multi-turn `history` and opt-in streaming were added later; see the status note above).
 - **Product Card** (customer-safe): product/article/variant identifiers, product name, variant name, brand, pet type, price + currency, discount label, rating (null when the Variant has no ratings) + rating count, and an `in_stock` boolean. Internal Fields are excluded by construction — the response model has no such fields.
 - **Pipeline**: a plain deterministic chain — Judge → Retriever → Generator — each stage behind an interface. No query planner or tool-calling loop in the PoC; those are the named seams for the agentic roadmap.
 - **Judge**: prompt-only topicality check on the tiny model, returning a structured verdict before retrieval. On-topic = answerable from the catalog (products and their attributes, including ingredients and feeding recommendations). Pet trivia without a product angle is declined. Declines are polite, in the Site locale, with an empty products list. An unparseable verdict fails open (proceed to retrieval) with a warning log — false declines hurt customers more than a leaked answer grounded only in catalog data.
@@ -50,7 +55,7 @@ An async chatbot API: `POST /chat` accepts a `site_id` and a natural-language `q
 - **Site registry**: derived from the dataset (Site → locale, currency); Sites 1 (de-DE, EUR), 3 (en-GB, GBP), 15 (es-ES, EUR) with disjoint catalogs.
 - **Ingest policies** (all actions summarized in an ingest report): drop exact duplicate rows; quarantine Variants failing a price-plausibility check; on conflicting duplicates (same Variant, different pet type) keep the first deterministically and log the conflict; map `stock_units` to an `in_stock` boolean; treat `rating_average` as null when `rating_count` is 0.
 - **Configuration**: environment-driven settings (model names, Ollama host, data path, top-k) with sane defaults.
-- **Observability (PoC level)**: structured logging with request IDs and stage timings; deeper observability is roadmap.
+- **Observability (PoC level)**: structured logging with request IDs and stage timings; deeper observability was roadmap (env-toggled Phoenix tracing has since shipped).
 
 ## Testing Decisions
 
@@ -58,17 +63,17 @@ An async chatbot API: `POST /chat` accepts a `site_id` and a natural-language `q
 - **What makes a good test here**: assert external behavior only — HTTP responses, contract shapes, policy outcomes — never internal call patterns or private structure.
 - **The single seam**: the injected LLM client. API-level tests drive real HTTP through the ASGI test client with a fake client scripting Judge verdicts and generator answers; ingest, retrieval, site filtering, mapping, and error paths all run real code under those tests.
 - **Pure-unit layer**: ingest policies and the BM25 Retriever are tested as plain functions against the real dataset (or trimmed fixtures) — no substitution needed.
-- **LLM output quality** (does e4b actually answer well?) is not asserted in CI: a documented manual smoke script against live Ollama covers it; a labeled-query evaluation harness is a roadmap item.
+- **LLM output quality** (does e4b actually answer well?) is not asserted in CI: a documented manual smoke script against live Ollama covers it; a labeled-query evaluation harness was a roadmap item (the structural golden-set harness in `evals/` has since shipped).
 - **Prior art**: none — greenfield repo.
 
 ## Out of Scope
 
-- Multi-turn conversation and streaming responses
-- Vector, hybrid, or reranked retrieval (the seam exists; implementations are roadmap)
+- Multi-turn conversation and streaming responses (both since shipped — see the status note above)
+- Vector, hybrid, or reranked retrieval (the seam existed; hybrid has since shipped behind it per ADR 0003, reranking is still roadmap)
 - Query planner or tool-calling agent loop
 - Cross-lingual retrieval
 - Docker/containerization, CI pipelines, auth, and rate limiting
-- Automated LLM-quality evaluation harness
+- Automated LLM-quality evaluation harness (still roadmap — the golden-set eval that shipped is structural, not LLM-scored)
 - Git repository setup and submission logistics (Andres handles these)
 
 ## Further Notes

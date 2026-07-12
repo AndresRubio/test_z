@@ -1,7 +1,11 @@
 # Web UI for manual testing and demos — design
 
 **Date:** 2026-07-10
-**Status:** approved (brainstormed with user; see decisions below)
+
+**Status:** implemented · partially superseded — the console gained SSE
+streaming the same evening and `history` resending for multi-turn the next
+day; see `docs/specs/streaming/2026-07-10-chat-sse-streaming-design.md` and
+`docs/specs/conversation/2026-07-11-conversational-improvements-design.md`.
 
 ## Goal
 
@@ -29,7 +33,8 @@ No backend, schema, or pipeline changes.
   file with inline CSS and JS. No build step, no framework, no new
   dependencies (`pyproject.toml` untouched).
 - A small UI router in `app/ui/` serves the file at `GET /`; `create_app`
-  includes it. `app/api/routes.py` stays JSON-only.
+  includes it. `app/api/routes.py` stays JSON-only (true at the time — it now
+  also serves the SSE stream; see the status note above).
 - Run flow is unchanged: `uv run uvicorn app.main:app`, then open
   `http://localhost:8000/`.
 
@@ -45,8 +50,9 @@ Single screen, chat-style:
   with count, in/out-of-stock badge. Each reply has a "view raw JSON" toggle.
 - **Composer:** text input + send button, Enter to send; input disabled with
   a typing indicator while a request is in flight.
-- Exchanges are stateless, matching the API. Switching Site mid-session
-  applies to the next message only.
+- Exchanges are stateless, matching the API (the server still is; the console
+  now resends `history` client-side — see the status note above). Switching
+  Site mid-session applies to the next message only.
 
 ## Error handling
 
@@ -68,7 +74,9 @@ Single screen, chat-style:
 
 ## Out of scope
 
-- Streaming (the API does not stream).
-- Conversation memory / multi-turn context (the API is stateless).
+- Streaming (the API did not stream at the time — since shipped, see the
+  status note above).
+- Conversation memory / multi-turn context (the API is stateless; client-side
+  `history` resending was added later — same note).
 - Pipeline introspection (Judge verdict, BM25 scores, timings) — would
   require API changes; revisit only if the pure client proves insufficient.

@@ -1,6 +1,6 @@
 # 05 — README and submission polish
 
-Status: ready-for-agent
+Status: done — the deliverable is the repo-root `README.md` itself: the four mandated sections are in place and the full test suite passed on the final state
 
 ## Parent
 
@@ -14,12 +14,12 @@ Covers user stories 20, 21.
 
 ## Acceptance criteria
 
-- [ ] README contains the four mandated sections with a rendering architecture diagram
-- [ ] Setup instructions verified end-to-end from a clean checkout: models pulled, `uv sync`, service starts, documented example curls return the documented shapes against live Ollama
-- [ ] Data-quality findings and policies documented with the actual counts from the ingest report
-- [ ] The site-locale answer policy is called out explicitly so reviewers don't read it as a bug
-- [ ] Decisions section reflects the ADRs and names the consciously accepted gaps (cross-lingual, paraphrase recall, single-turn)
-- [ ] Full test suite passes on the final state
+- [x] README contains the four mandated sections with a rendering architecture diagram
+- [x] Setup instructions verified end-to-end from a clean checkout: models pulled, `uv sync`, service starts, documented example curls return the documented shapes against live Ollama
+- [x] Data-quality findings and policies documented with the actual counts from the ingest report
+- [x] The site-locale answer policy is called out explicitly so reviewers don't read it as a bug
+- [x] Decisions section reflects the ADRs and names the consciously accepted gaps (cross-lingual, paraphrase recall, single-turn)
+- [x] Full test suite passes on the final state
 
 ## Blocked by
 

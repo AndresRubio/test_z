@@ -1,6 +1,6 @@
 # 01 — Walking skeleton: contract-complete /chat with stub pipeline
 
-Status: ready-for-agent
+Status: done — shipped; verified by the offline test suite (contract shape, 404/422 validation, health, structured-log tests) and the live smoke script
 
 ## Parent
 
@@ -14,13 +14,13 @@ Covers user stories 16, 17, 18, 20 (partially), 24.
 
 ## Acceptance criteria
 
-- [ ] Fresh checkout: `uv sync` then a single documented run command starts the service
-- [ ] `POST /chat` with a valid `site_id` returns 200 and the full contract shape (stub answer, empty products, count 0)
-- [ ] `POST /chat` with `site_id` 7 returns 404 and the error detail names Sites 1, 3, 15
-- [ ] Missing or wrongly-typed `site_id`/`query` returns 422
-- [ ] `GET /health` returns 200
-- [ ] Each request logs a request ID; logs are structured
-- [ ] All behavior above is specified by TDD-first tests through the ASGI test client
+- [x] Fresh checkout: `uv sync` then a single documented run command starts the service
+- [x] `POST /chat` with a valid `site_id` returns 200 and the full contract shape (stub answer, empty products, count 0)
+- [x] `POST /chat` with `site_id` 7 returns 404 and the error detail names Sites 1, 3, 15
+- [x] Missing or wrongly-typed `site_id`/`query` returns 422
+- [x] `GET /health` returns 200
+- [x] Each request logs a request ID; logs are structured
+- [x] All behavior above is specified by TDD-first tests through the ASGI test client
 
 ## Blocked by
 

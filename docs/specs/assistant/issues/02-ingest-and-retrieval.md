@@ -1,6 +1,6 @@
 # 02 — Ingest with data-quality policies + BM25 retrieval returning Product Cards
 
-Status: ready-for-agent
+Status: done — shipped; verified by the offline test suite (ingest policies and BM25 against the real dataset), the live smoke script, and the golden-set eval's retrieval expectations
 
 ## Parent
 
@@ -14,13 +14,13 @@ Covers user stories 2, 5, 6, 7, 8, 13, 14, 15, 22 (retriever seam), 24.
 
 ## Acceptance criteria
 
-- [ ] Ingest report states, for the provided dataset: 12 exact duplicates dropped, 24 Variants quarantined for implausible prices, 1 pet-type conflict logged, 8 Variants marked out of stock, 198 ratings nulled
-- [ ] Quarantined Variants are absent from retrieval results
-- [ ] "dry food for a puppy with a sensitive stomach" on Site 3 retrieves sensitive/puppy dry-food Variants; equivalent locale-language queries work on Sites 1 and 15
-- [ ] Results never include Variants from another Site
-- [ ] Product Card serialization contains no margin, sales, revenue, or raw stock-unit fields; rating is null where rating count is 0; `in_stock` is boolean; price carries the Site currency
-- [ ] `/chat` returns retrieved Product Cards ordered by relevance with correct `count`
-- [ ] All policies and retrieval behaviors specified by TDD-first tests (plain-function tests for ingest/retriever, ASGI tests for the contract)
+- [x] Ingest report states, for the provided dataset: 12 exact duplicates dropped, 24 Variants quarantined for implausible prices, 1 pet-type conflict logged, 8 Variants marked out of stock, 198 ratings nulled
+- [x] Quarantined Variants are absent from retrieval results
+- [x] "dry food for a puppy with a sensitive stomach" on Site 3 retrieves sensitive/puppy dry-food Variants; equivalent locale-language queries work on Sites 1 and 15
+- [x] Results never include Variants from another Site
+- [x] Product Card serialization contains no margin, sales, revenue, or raw stock-unit fields; rating is null where rating count is 0; `in_stock` is boolean; price carries the Site currency
+- [x] `/chat` returns retrieved Product Cards ordered by relevance with correct `count`
+- [x] All policies and retrieval behaviors specified by TDD-first tests (plain-function tests for ingest/retriever, ASGI tests for the contract)
 
 ## Blocked by
 

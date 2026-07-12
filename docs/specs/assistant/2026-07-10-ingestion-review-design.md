@@ -1,6 +1,10 @@
 # Ingestion review — design for the write-up and gap-analysis record
 
-Date: 2026-07-10 · Status: approved · Scope: **docs-only** (no code changes)
+Date: 2026-07-10 · Status: applied (same day) · Scope: **docs-only** (no code
+changes). Kept as written; two details have since moved on — the README
+sections it prescribes landed under different headings ("The data story"
+instead of "Data & Ingestion"), and the ingest plan it references has since
+been committed.
 
 ## Why
 
@@ -127,8 +131,8 @@ moves into the walkthrough.
 `docs/specs/assistant/ingest-pipeline.plan.md`: flip status to
 `implemented — reviewed 2026-07-10` and add an **Outcome** block at the top
 recording, per plan item, "implemented as planned" or "deviated + reason",
-mirroring the gap-analysis table above. Commit the file (it is currently
-untracked).
+mirroring the gap-analysis table above. Commit the file (untracked at the
+time; since committed).
 
 ## Verification
 

@@ -6,7 +6,8 @@ would assume the opposite, so the reasons on record:
 
 - The corpus is small enough that lexical recall is strong.
 - The assignment's own example queries match catalog text literally.
-- Skipping an embedding model keeps setup to a single `ollama pull`.
+- Skipping an embedding model keeps setup to the two chat-model `ollama pull`s
+  and nothing else.
 - The `Retriever` interface is the deliberate seam for the production path:
   multilingual vector search, hybrid fusion (RRF), then a reranker.
 
