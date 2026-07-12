@@ -378,6 +378,18 @@ OpenInference spans: `chat` (CHAIN), `judge` (GUARDRAIL), `retrieve`
    a hosted-LLM backend behind the same client seam.
 7. **Productionization** — containerize, CI, auth and rate limiting, catalog
    refresh pipeline instead of startup ingest, metrics on the Phoenix traces.
+8. **Voice in and out** — let shoppers speak instead of type. The pieces and
+   their implications: **STT** (multilingual per Site, so the German shop
+   hears German); **transcript sanitization** — STT output is untrusted user
+   input like any other and goes through the same Judge/fencing path, plus
+   normalization of spoken numbers and units ("two kilos", "under twenty
+   euros") before slot extraction (roadmap #3); **VAD + endpointing** to know
+   when the shopper has finished asking; **TTS** fed incrementally from the
+   existing SSE token stream so speech starts before the full answer exists;
+   and **interruptibility (barge-in)** — VAD during playback cancels TTS and
+   the in-flight generation, which the streaming contract already supports
+   (a stream may end without `done`). Voice tightens the latency budget:
+   time-to-first-token stops being cosmetic and becomes the product.
 
 ## What this PoC demonstrates
 
